@@ -1,0 +1,171 @@
+; stop printing object, unique label id: 91
+M625
+; LAYER_HEIGHT: 0.200000
+; FEATURE: Prime tower
+; LINE_WIDTH: 0.500000
+;--------------------
+; CP TOOLCHANGE START
+; toolchange #12
+; material : PLA -> PLA
+;--------------------
+M220 S100
+; WIPE_TOWER_START
+; filament end gcode 
+M106 P3 S0
+
+; WIPE_START
+
+; WIPE_END
+G1 E-.1 F1800
+M620 SXXA
+M204 S9000
+
+G17
+;lift by 0.4mm
+;G2 Z7.2 I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
+G2 I0.86 J0.86 P1 F10000 
+G91
+G1 Z0.4
+G90
+
+;G1 Z9.8 F1200
+G91
+G1 Z2.6
+G90
+
+G1 X70 F21000
+G1 Y245
+G1 Y265 F3000
+M400
+M106 P1 S0
+M106 P2 S0
+
+M104 S220
+
+G1 X90
+G1 Y255 F4000
+G1 X100 F5000
+G1 X120 F15000
+
+G1 X20 Y50 F21000
+G1 Y-3
+
+M620.1 E F523 T240
+TXX
+M620.1 E F523 T240
+
+
+M400
+
+G92 E0
+
+; FLUSH_START
+; always use highest temperature to flush
+M400
+
+M109 S240
+
+
+G1 E23.7 F523 ; do not need pulsatile flushing for start part
+G1 E0.690105 F50
+G1 E7.9362 F523
+G1 E0.690105 F50
+G1 E7.9362 F523
+G1 E0.690105 F50
+G1 E7.9362 F523
+G1 E0.690105 F50
+G1 E7.9362 F523
+
+; FLUSH_END
+G1 E-2 F1800
+
+G1 E2 F300
+
+
+
+; FLUSH_START
+G1 E10.4769 F523
+G1 E1.1641 F50
+G1 E10.4769 F523
+G1 E1.1641 F50
+G1 E10.4769 F523
+G1 E1.1641 F50
+G1 E10.4769 F523
+G1 E1.1641 F50
+G1 E10.4769 F523
+G1 E1.1641 F50
+; FLUSH_END
+G1 E-2 F1800
+
+G1 E2 F300
+
+
+
+
+
+; FLUSH_START
+M400
+M109 S220
+G1 E2 F523 ;Compensate for filament spillage during waiting temperature
+; FLUSH_END
+M400
+G92 E0
+G1 E-2 F1800
+M106 P1 S255
+M400 S3
+G1 X80 F15000
+G1 X60
+G1 X80
+G1 X60; shake to put down garbage
+
+G1 X70 F5000
+G1 X90 F3000
+G1 Y255 F4000
+G1 X100 F5000
+G1 Y265
+G1 X70 F10000
+G1 X100 F5000
+G1 X70 F10000
+G1 X100 F5000
+G1 X165 F15000; wipe and shake
+G1 Y256 ; move Y to aside, prevent collision
+M400
+;G1 Z9.8 F3000
+
+M204 S10000
+
+
+M621 SXXA
+M106 S178.5
+M106 P2 S178
+
+; filament start gcode
+M106 P3 S200
+
+; CP TOOLCHANGE WIPE
+
+; WIPE_TOWER_END
+G92 E0
+; CP TOOLCHANGE END
+;------------------
+
+
+
+; WIPE_START
+; WIPE_END
+G1 E-.04 F1800
+; start printing object, unique label id: 91
+M624 AQAAAAAAAAA=
+;G1 X183.982 Y230.46 Z7.2 F30000
+;G1 X125.306 Y122.424 Z7.2
+G91
+G1 Z-2.6 F30000
+G90
+
+
+;G1 Z6.8 ; restore Z
+G91
+G1 Z-0.4
+G90
+G1 E.8 F1800
+; FEATURE: Inner wall
