@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from tkinter import filedialog as fd
 from tkinter.messagebox import showinfo
 
@@ -7,10 +8,7 @@ import os
 
 from map_post_process import *
 
-window = tk.Tk()
-window.columnconfigure(0, minsize=100)
 
-window.title('Tkinter Open File Dialog')
 
 userOptions = {}
 
@@ -39,96 +37,127 @@ def addExportToFilename(fn):
     exportFn += fnSplit[1]
   return exportFn
 
-def selectImportGcodeFile():
-  fn = select_file(('Gcode file', '*.gcode'))
-  importGcodeButton.config(text=truncateMiddleLength(fn, 50))
-  exportFn = addExportToFilename(fn)
-  exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
-  userOptions[IMPORT_GCODE_FILENAME] = fn
-  userOptions[EXPORT_GCODE_FILENAME] = fn
+class App(tk.Tk):
+  def __init__(self):
+    super().__init__()
 
-def selectOptionsFile():
-  fn = select_file(('JSON file', '*.json'))
-  importOptionsButton.config(text=truncateMiddleLength(fn, 50))
-  userOptions[IMPORT_OPTIONS_FILENAME] = fn
-  with open(fn) as f:
-    try:
-      data = json.load(f)
-      if isinstance(data,dict):
-        for item in data.items():
-          userOptions[item[0]] = userOptions[item[1]]
-    except ValueError:
-      showinfo(
-        title='Unable to load options',
-        message='Check if options file format is JSON'
-      )
+    self.title('Login')
 
-def selectExportGcodeFile():
-  fn = select_file(('JSON file', '*.json'))
-  if fn == userOptions[IMPORT_GCODE_FILENAME]:
-    fn = addExportToFilename(fn)
-    showinfo(
-        title='Invalid selection',
-        message='Export file must be different from import file. The export filename has been changed to be different.'
+    # configure the grid
+    self.columnconfigure(0, weight=1)
+    self.columnconfigure(1, weight=3)
+
+    self.create_widgets()
+
+  def create_widgets(self):
+
+    def selectImportGcodeFile():
+      fn = select_file(('Gcode file', '*.gcode'))
+      importGcodeButton.config(text=truncateMiddleLength(fn, 50))
+      exportFn = addExportToFilename(fn)
+      exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
+      userOptions[IMPORT_GCODE_FILENAME] = fn
+      userOptions[EXPORT_GCODE_FILENAME] = fn
+
+    def selectOptionsFile():
+      fn = select_file(('JSON file', '*.json'))
+      importOptionsButton.config(text=truncateMiddleLength(fn, 50))
+      userOptions[IMPORT_OPTIONS_FILENAME] = fn
+
+    def selectExportGcodeFile():
+      fn = select_file(('JSON file', '*.json'))
+      if fn == userOptions[IMPORT_GCODE_FILENAME]:
+        fn = addExportToFilename(fn)
+        showinfo(
+            title='Invalid selection',
+            message='Export file must be different from import file. The export filename has been changed to be different.'
+        )
+      exportGcodeButton.config(text=truncateMiddleLength(fn, 50))
+      userOptions[EXPORT_GCODE_FILENAME] = fn
+
+    importLabel = tk.Label(
+        master=self,
+        text='Print Gcode '
     )
-  exportGcodeButton.config(text=truncateMiddleLength(fn, 50))
-  userOptions[EXPORT_GCODE_FILENAME] = fn
+    importLabel.grid(row=0, column=0, sticky=tk.W)
+    importGcodeButton = tk.Button(
+        master=self,
+        text='Select file',
+        command=selectImportGcodeFile
+    )
+    importGcodeButton.grid(row=0, column=1, sticky=tk.EW)
 
-labelFrame = tk.Frame(
-  master=window,
-  borderwidth=1
-)
-labelFrame.grid(row=0, column=0)
-importLabel = tk.Label(
-    master=labelFrame,
-    text='Print Gcode '
-)
-importLabel.pack(side=tk.TOP)
-optionsLabel = tk.Label(
-    master=labelFrame,
-    text='Options'
-)
-optionsLabel.pack(side=tk.TOP)
-exportLabel = tk.Label(
-    master=labelFrame,
-    text='Export Gcode'
-)
-exportLabel.pack(side=tk.TOP)
+    optionsLabel = tk.Label(
+        master=self,
+        text='Options'
+    )
+    optionsLabel.grid(row=1, column=0, sticky=tk.W)
+    importOptionsButton = tk.Button(
+        master=self,
+        text='Select file',
+        command=selectOptionsFile
+    )
+    importOptionsButton.grid(row=1, column=1, sticky=tk.EW)
 
-actionsFrame = tk.Frame(
-  master=window,
-  borderwidth=1
-)
-actionsFrame.grid(row=0, column=1)
-importGcodeButton = tk.Button(
-    master=actionsFrame,
-    text='Select file',
-    command=selectImportGcodeFile
-)
-importGcodeButton.pack(side=tk.TOP)
-importOptionsButton = tk.Button(
-    master=actionsFrame,
-    text='Select file',
-    command=selectOptionsFile
-)
-importOptionsButton.pack(side=tk.TOP)
-exportGcodeButton = tk.Button(
-    master=actionsFrame,
-    text='Select file',
-    command=selectExportGcodeFile
-)
-exportGcodeButton.pack(side=tk.TOP)
+    exportLabel = tk.Label(
+        master=self,
+        text='Export Gcode'
+    )
+    exportLabel.grid(row=2, column=0, sticky=tk.W)
+    exportGcodeButton = tk.Button(
+        master=self,
+        text='Select file',
+        command=selectExportGcodeFile
+    )
+    exportGcodeButton.grid(row=2, column=1, sticky=tk.EW)
 
-def startPostProcess():
-  createIsoline()
-  createReplacementColor()
-  process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME])
+    separator = ttk.Separator(self, orient=tk.HORIZONTAL)
+    separator.grid(row=3, column=0, sticky=tk.EW, columnspan=2)
 
-startPostProcessButton = tk.Button(
-    master=actionsFrame,
-    text='Post Process',
-    command=startPostProcess
-)
-startPostProcessButton.pack(side=tk.TOP)
+    processStatusLabel = tk.Label(
+        master=self,
+        text='0/0 layers'
+    )
+    processStatusLabel.grid(row=4, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    processStatusProcessBar = ttk.Progressbar(
+      self,
+      orient=tk.HORIZONTAL
+    )
+    processStatusProcessBar.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    processStatusProcessBar.step(50)
 
-window.mainloop()
+    def startPostProcess():
+      if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
+        showinfo(
+            title='Post Process Requirements',
+            message='Need import, options, and exports specified'
+        )
+        return
+      
+      with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
+        try:
+          data = json.load(f)
+          if isinstance(data,dict):
+            for item in data.items():
+              userOptions[item[0]] = userOptions[item[1]]
+        except ValueError:
+          showinfo(
+            title='Unable to load options',
+            message='Check if options file format is JSON'
+          )
+          return
+
+      createIsoline()
+      createReplacementColor()
+      process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME])
+
+    startPostProcessButton = tk.Button(
+        master=self,
+        text='Post Process',
+        command=startPostProcess
+    )
+    startPostProcessButton.grid(row=6, column=0, sticky=tk.EW, columnspan=2)
+
+if __name__ == "__main__":
+  app = App()
+  app.mainloop()
