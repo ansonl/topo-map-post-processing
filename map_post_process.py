@@ -23,6 +23,10 @@ M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 #outputFile = 'dicetestout.gcode'
 toolchangeBareFile = 'toolchange-bare.gcode'
 
+class StatusQueue:
+  def __init__(self):
+    self.type=None
+
 # State of current Print FILE
 class PrintState:
   def __init__(self):
@@ -311,7 +315,7 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   
   out.write(cl)
 
-def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight]):
+def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue:q queue.Queue()):
   with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
     currentPrint: PrintState = PrintState()
 
@@ -331,10 +335,15 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
         print(f"skipOriginalToolchangeOnLayer {currentPrint.skipOriginalToolchangeOnLayer}")
         print(f"primetower.start {currentPrint.primeTower.start}")
         print(f"primetower.end {currentPrint.primeTower.end}")
+        item = StatusQueue()
+        item.type = 'status'
+        item.data = currentPrint.height
+        q.put()
       f.seek(cp, os.SEEK_SET)
 
       cl = f.readline()
       #print(".",end='')
+      
 
       # look for toolchange T
       toolchangeMatch = re.match(TOOLCHANGE_T, cl)
@@ -349,9 +358,9 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
           print(f"start skip {f.tell()}")
           skipWrite = True
           out.write("; Original Prime Tower and Toolchange skipped\n")
-        if currentPrint.height == 6.4 and f.tell() < currentPrint.primeTower.end and f.tell() > currentPrint.primeTower.start:
-          print(f.tell())
-        if f.tell() >= currentPrint.primeTower.end:
+        #if currentPrint.height == 6.4 and f.tell() < currentPrint.primeTower.end and f.tell() > currentPrint.primeTower.start:
+        #  print(f.tell())
+        if f.tell() == currentPrint.primeTower.end:
           if skipWrite:
             print(f"end skip at {f.tell()} {currentPrint.primeTower.end}")
           skipWrite = False
@@ -362,7 +371,7 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
           print(f"start skip {f.tell()}")
           skipWrite = True
           out.write("; Original Toolchange skipped\n")
-        if f.tell() >= currentPrint.primeTower.toolchange.end:
+        if f.tell() == currentPrint.primeTower.toolchange.end:
           if skipWrite:
             print(f"end skip at {f.tell()} {currentPrint.primeTower.toolchange.end}")
           skipWrite = False

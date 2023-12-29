@@ -6,6 +6,9 @@ from tkinter.messagebox import showinfo
 import json
 import os
 
+import threading
+import queue
+
 from map_post_process import *
 
 # RUNTIME Flag
@@ -39,7 +42,7 @@ def addExportToFilename(fn):
   return exportFn
 
 class App(tk.Tk):
-  def __init__(self):
+  def __init__(self, queue):
     super().__init__()
 
     self.title('Login')
@@ -48,6 +51,7 @@ class App(tk.Tk):
     self.columnconfigure(0, weight=1)
     self.columnconfigure(1, weight=3)
 
+    self.queue = queue
     self.create_widgets()
 
   def create_widgets(self):
@@ -115,17 +119,17 @@ class App(tk.Tk):
     separator = ttk.Separator(self, orient=tk.HORIZONTAL)
     separator.grid(row=3, column=0, sticky=tk.EW, columnspan=2)
 
-    processStatusLabel = tk.Label(
+    self.processStatusLabel = tk.Label(
         master=self,
         text='0/0 layers'
     )
-    processStatusLabel.grid(row=4, column=0, columnspan=2, padx=10, sticky=tk.EW)
-    processStatusProcessBar = ttk.Progressbar(
+    self.processStatusLabel.grid(row=4, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusProgressBar = ttk.Progressbar(
       self,
       orient=tk.HORIZONTAL
     )
-    processStatusProcessBar.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
-    processStatusProcessBar.step(50)
+    self.processStatusProgressBar.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusProgressBar.step(50)
 
     def startPostProcess():
       periodicColors = []
@@ -185,7 +189,7 @@ class App(tk.Tk):
           )
         ]
         
-      process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors)
+      process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
 
     startPostProcessButton = tk.Button(
         master=self,
@@ -195,5 +199,21 @@ class App(tk.Tk):
     startPostProcessButton.grid(row=6, column=0, sticky=tk.EW, columnspan=2, padx=10)
 
 if __name__ == "__main__":
-  app = App()
+  q = queue.Queue()
+
+  app = App(q)
+
+  def worker():
+    while True:
+      item = q.get()
+      if item.type == 'status':
+        app.processStatusLabel.set(item.data)
+      elif item.type == 'progressbar':
+        app.processStatusProgressBar.step(item.data)
+      else:
+        print("unknown queue item type")
+      q.task_done()
+  
+  threading.Thread(target=worker, daemon=True).start()
+        
   app.mainloop()
