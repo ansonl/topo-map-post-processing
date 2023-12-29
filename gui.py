@@ -8,7 +8,8 @@ import os
 
 from map_post_process import *
 
-
+# RUNTIME Flag
+TEST_MODE = True
 
 userOptions = {}
 
@@ -127,36 +128,71 @@ class App(tk.Tk):
     processStatusProcessBar.step(50)
 
     def startPostProcess():
-      if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
-        showinfo(
-            title='Post Process Requirements',
-            message='Need import, options, and exports specified'
-        )
-        return
-      
-      with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
-        try:
-          data = json.load(f)
-          if isinstance(data,dict):
-            for item in data.items():
-              userOptions[item[0]] = userOptions[item[1]]
-        except ValueError:
+      periodicColors = []
+      replacementColors = []
+
+      if TEST_MODE:
+        userOptions[IMPORT_GCODE_FILENAME] = 'dicetest.gcode'
+        userOptions[EXPORT_GCODE_FILENAME] = 'dicetest-export.gcode'
+        periodicColors = [
+          PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)
+        ]
+        replacementColors = [
+          ReplacementColorAtHeight(colorIndex=3, originalColorIndex=0, startHeight=8, endHeight=float('inf'))
+        ]
+      else:
+        if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
           showinfo(
-            title='Unable to load options',
-            message='Check if options file format is JSON'
+              title='Post Process Requirements',
+              message='Need import, options, and exports specified'
           )
           return
+        
+        with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
+          try:
+            data = json.load(f)
+            if isinstance(data,dict):
+              for item in data.items():
+                userOptions[item[0]] = userOptions[item[1]]
+          except ValueError:
+            showinfo(
+              title='Unable to load options',
+              message='Check if options file format is JSON'
+            )
+            return
 
-      createIsoline()
-      createReplacementColor()
-      process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME])
+        periodicColors: list[PeriodicColor] = [
+          createIsoline(
+            modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
+            modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
+            modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
+            realWorldIsolineElevationInterval=userOptions[REAL_WORLD_ISOLINE_ELEVATION_INTERVAL],
+            realWorldIsolineElevationStart=userOptions[REAL_WORLD_ISOLINE_ELEVATION_START],
+            realWorldIsolineElevationEnd=userOptions[REAL_WORLD_ISOLINE_ELEVATION_END],
+            modelIsolineHeight=userOptions[MODEL_ISOLINE_HEIGHT],
+            colorIndex=userOptions[ISOLINE_COLOR_INDEX]
+          )
+        ]
+        replacementColors: list[ReplacementColorAtHeight] = [
+          createReplacementColor(
+            modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
+            modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
+            modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
+            realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_START],
+            realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_END],
+            colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
+            originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
+          )
+        ]
+        
+      process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors)
 
     startPostProcessButton = tk.Button(
         master=self,
         text='Post Process',
         command=startPostProcess
     )
-    startPostProcessButton.grid(row=6, column=0, sticky=tk.EW, columnspan=2)
+    startPostProcessButton.grid(row=6, column=0, sticky=tk.EW, columnspan=2, padx=10)
 
 if __name__ == "__main__":
   app = App()
