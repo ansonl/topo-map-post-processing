@@ -1,4 +1,4 @@
-import re, os, typing
+import re, os, typing, queue
 
 # Constants
 STOP_OBJECT = '^; stop printing object, unique label id:\s(\d*)'
@@ -23,9 +23,10 @@ M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 #outputFile = 'dicetestout.gcode'
 toolchangeBareFile = 'toolchange-bare.gcode'
 
-class StatusQueue:
+class StatusQueueItem:
   def __init__(self):
-    self.type=None
+    self.status = None
+    self.progress = None
 
 # State of current Print FILE
 class PrintState:
@@ -315,9 +316,14 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   
   out.write(cl)
 
-def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue:q queue.Queue()):
+def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
   with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
     currentPrint: PrintState = PrintState()
+
+    #Get total length of file
+    f.seek(0, os.SEEK_END)
+    lp = f.tell()
+    f.seek(0, os.SEEK_SET)
 
     # Don't write to output
     skipWrite = False
@@ -335,15 +341,16 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
         print(f"skipOriginalToolchangeOnLayer {currentPrint.skipOriginalToolchangeOnLayer}")
         print(f"primetower.start {currentPrint.primeTower.start}")
         print(f"primetower.end {currentPrint.primeTower.end}")
-        item = StatusQueue()
-        item.type = 'status'
-        item.data = currentPrint.height
-        q.put()
+        item = StatusQueueItem()
+        item.status = f"Current Height {currentPrint.height}"
+        item.progress = cp/lp * 100
+        statusQueue.put(item=item)
+        # join to debug thread queue reading
+        #statusQueue.join()
       f.seek(cp, os.SEEK_SET)
 
       cl = f.readline()
       #print(".",end='')
-      
 
       # look for toolchange T
       toolchangeMatch = re.match(TOOLCHANGE_T, cl)
@@ -415,3 +422,8 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
           f.seek(cp, os.SEEK_SET)
           currentPrint.printingColor = currentPrint.toolchangeNewColorIndex
           currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
+
+    item = StatusQueueItem()
+    item.status = f"Completed at {currentPrint.height}"
+    item.progress = 99.9
+    statusQueue.put(item=item)
