@@ -90,29 +90,6 @@ replacementColors: list[ReplacementColorAtHeight] = [
 ]
 '''
 
-# Options keys
-IMPORT_GCODE_FILENAME = 'importGcodeFilename'
-IMPORT_OPTIONS_FILENAME = 'importOptionsFilename'
-EXPORT_GCODE_FILENAME = 'exportGcodeFilename'
-
-MODEL_TO_REAL_WORLD_DEFAULT_UNITS = 'modelToRealWorldDefaultUnits'
-MODEL_ONE_TO_N_VERTICAL_SCALE = 'modelOneToNVerticalScale'
-MODEL_SEA_LEVEL_BASE_THICKNESS = 'modelSeaLevelBaseThickness'
-
-REAL_WORLD_ISOLINE_ELEVATION_INTERVAL = 'realWorldIsolineElevationInterval'
-REAL_WORLD_ISOLINE_ELEVATION_START = 'realWorldIsolineElevationStart'
-REAL_WORLD_ISOLINE_ELEVATION_END = 'realWorldIsolineElevationEnd'
-MODEL_ISOLINE_HEIGHT = 'modelIsolineHeight' #in model units
-ISOLINE_COLOR_INDEX = 'isolineColorIndex'
-
-REAL_WORLD_ELEVATION_START = 'realWorldElevationStart'
-REAL_WORLD_ELEVATION_END = 'realWorldElevationEnd'
-REPLACEMENT_COLOR_INDEX = 'replacementColorIndex'
-REPLACEMENT_ORIGINAL_COLOR_INDEX = 'replacementOriginalColorIndex'
-
-#COLOR_INDEX = 'colorIndex'
-#ORIGINAL_COLOR_INDEX = 'originalColorIndex'
-
 def createIsoline(modelToRealWorldDefaultUnits: float, modelOneToNVerticalScale: float, modelSeaLevelBaseThickness: float, realWorldIsolineElevationInterval: float, realWorldIsolineElevationStart: float, realWorldIsolineElevationEnd: float, modelIsolineHeight: float, colorIndex: int):
   return PeriodicColor(colorIndex=colorIndex, startHeight=modelSeaLevelBaseThickness + modelToRealWorldDefaultUnits*realWorldIsolineElevationStart/modelOneToNVerticalScale, endHeight=modelToRealWorldDefaultUnits*realWorldIsolineElevationEnd/modelOneToNVerticalScale, height=modelIsolineHeight, period=modelToRealWorldDefaultUnits*realWorldIsolineElevationInterval/modelOneToNVerticalScale)
 
@@ -176,6 +153,9 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
     if insertionPoint == None:
       print(f"Failed to find toolchange insertion point at layer Z_HEIGHT {printState.height}")
 
+
+      
+
     isPeriodicLine = shouldLayerBePeriodicLine(printState, pcs[0]) if len(pcs) > 0 else False
     print(f"Is printing periodic color {printState.printingPeriodicColor}")
     print(f"Is periodic line {isPeriodicLine}")
@@ -208,7 +188,8 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
       # Previously printing periodic color, new toolchange to original color
       else:
         # new inserted toolchange is original color
-        printState.toolchangeNewColorIndex = printState.originalColor
+        # Check if original color has current replacement color loaded. Use original color or replacement color for toolchange new color index
+        printState.toolchangeNewColorIndex = printState.originalColor if loadedColors[printState.printingColor].replacementColorIndex == -1 else loadedColors[printState.printingColor].replacementColorIndex
         # check for toolchange on this layer
         if printState.primeTower and printState.primeTower.start:
           # if toolchange exist, switch toolhead, no prime block. Do toolchange after STOPOBJ and M991
@@ -218,6 +199,15 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
         else:
         # if no prime block (and no toolchange), switch toolhead, no prime block. Do toolchange after M991. If toolchange did exist but no prime block, same thing.
           printState.toolchangeBareInsertionPoint = insertionPoint
+    
+    # If we are not printing periodicColor on previous layer and current layer is not periodic color. 
+    elif printState.printingPeriodicColor == False and isPeriodicLine == False:
+      # Check if original active color at this point (at layer start) has a replacement color
+      if loadedColors[printState.originalColor].replacementColorIndex != -1:
+        # Insert toolchange (bare) at layer start to the original color's replacement color
+        printState.toolchangeNewColorIndex = loadedColors[printState.originalColor].replacementColorIndex
+        printState.toolchangeBareInsertionPoint = insertionPoint
+  
     return printState
   return None
 
@@ -317,113 +307,118 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   out.write(cl)
 
 def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
-  with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
-    currentPrint: PrintState = PrintState()
+  try:
+    with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
+      currentPrint: PrintState = PrintState()
 
-    #Get total length of file
-    f.seek(0, os.SEEK_END)
-    lp = f.tell()
-    f.seek(0, os.SEEK_SET)
+      #Get total length of file
+      f.seek(0, os.SEEK_END)
+      lp = f.tell()
+      f.seek(0, os.SEEK_SET)
 
-    # Don't write to output
-    skipWrite = False
+      # Don't write to output
+      skipWrite = False
 
-    # Current line buffer
-    cl = True
-    while cl:
-      # Look for start of a layer CHANGE_LAYER
-      cp = f.tell()
-      foundNewLayer = findChangeLayer(f,currentPrint, periodicColors, replacementColors)
-      if foundNewLayer:
-        currentPrint = foundNewLayer
-        print(f"toolchangeNewColorIndex {currentPrint.toolchangeNewColorIndex}")
-        print(f"skipOriginalPrimeTowerAndToolchangeOnLayer {currentPrint.skipOriginalPrimeTowerAndToolchangeOnLayer}")
-        print(f"skipOriginalToolchangeOnLayer {currentPrint.skipOriginalToolchangeOnLayer}")
-        print(f"primetower.start {currentPrint.primeTower.start}")
-        print(f"primetower.end {currentPrint.primeTower.end}")
-        item = StatusQueueItem()
-        item.status = f"Current Height {currentPrint.height}"
-        item.progress = cp/lp * 100
-        statusQueue.put(item=item)
-        # join to debug thread queue reading
-        #statusQueue.join()
-      f.seek(cp, os.SEEK_SET)
+      # Current line buffer
+      cl = True
+      while cl:
+        # Look for start of a layer CHANGE_LAYER
+        cp = f.tell()
+        foundNewLayer = findChangeLayer(f,currentPrint, periodicColors, replacementColors)
+        if foundNewLayer:
+          currentPrint = foundNewLayer
+          print(f"toolchangeNewColorIndex {currentPrint.toolchangeNewColorIndex}")
+          print(f"skipOriginalPrimeTowerAndToolchangeOnLayer {currentPrint.skipOriginalPrimeTowerAndToolchangeOnLayer}")
+          print(f"skipOriginalToolchangeOnLayer {currentPrint.skipOriginalToolchangeOnLayer}")
+          print(f"primetower.start {currentPrint.primeTower.start}")
+          print(f"primetower.end {currentPrint.primeTower.end}")
+          item = StatusQueueItem()
+          item.status = f"Current Height {currentPrint.height}"
+          item.progress = cp/lp * 100
+          statusQueue.put(item=item)
+          # join to debug thread queue reading
+          #statusQueue.join()
+        f.seek(cp, os.SEEK_SET)
 
-      cl = f.readline()
-      #print(".",end='')
+        cl = f.readline()
+        #print(".",end='')
 
-      # look for toolchange T
-      toolchangeMatch = re.match(TOOLCHANGE_T, cl)
-      if toolchangeMatch:
-        currentPrint.originalColor = int(toolchangeMatch.groups()[0])
+        # look for toolchange T
+        toolchangeMatch = re.match(TOOLCHANGE_T, cl)
+        if toolchangeMatch:
+          currentPrint.originalColor = int(toolchangeMatch.groups()[0])
+          if skipWrite == False:
+            currentPrint.printingColor = currentPrint.originalColor
+        
+        # Indicate current layer should skip the original prime tower and toolchange found
+        if currentPrint.skipOriginalPrimeTowerAndToolchangeOnLayer and currentPrint.primeTower:
+          if f.tell() == currentPrint.primeTower.start:
+            print(f"start skip {f.tell()}")
+            skipWrite = True
+            out.write("; Original Prime Tower and Toolchange skipped\n")
+          #if currentPrint.height == 6.4 and f.tell() < currentPrint.primeTower.end and f.tell() > currentPrint.primeTower.start:
+          #  print(f.tell())
+          if f.tell() == currentPrint.primeTower.end:
+            if skipWrite:
+              print(f"end skip at {f.tell()} {currentPrint.primeTower.end}")
+            skipWrite = False
+        
+        # Indicate current layer should skip the original toolchange found AND this layer's prime tower has a tool change section to skip
+        if currentPrint.skipOriginalToolchangeOnLayer and currentPrint.primeTower and currentPrint.primeTower.toolchange:
+          if f.tell() == currentPrint.primeTower.toolchange.start:
+            print(f"start skip {f.tell()}")
+            skipWrite = True
+            out.write("; Original Toolchange skipped\n")
+          if f.tell() == currentPrint.primeTower.toolchange.end:
+            if skipWrite:
+              print(f"end skip at {f.tell()} {currentPrint.primeTower.toolchange.end}")
+            skipWrite = False
+
         if skipWrite == False:
-          currentPrint.printingColor = currentPrint.originalColor
-      
-      # Indicate current layer should skip the original prime tower and toolchange found
-      if currentPrint.skipOriginalPrimeTowerAndToolchangeOnLayer and currentPrint.primeTower:
-        if f.tell() == currentPrint.primeTower.start:
-          print(f"start skip {f.tell()}")
-          skipWrite = True
-          out.write("; Original Prime Tower and Toolchange skipped\n")
-        #if currentPrint.height == 6.4 and f.tell() < currentPrint.primeTower.end and f.tell() > currentPrint.primeTower.start:
-        #  print(f.tell())
-        if f.tell() == currentPrint.primeTower.end:
-          if skipWrite:
-            print(f"end skip at {f.tell()} {currentPrint.primeTower.end}")
-          skipWrite = False
-      
-      # Indicate current layer should skip the original toolchange found AND this layer's prime tower has a tool change section to skip
-      if currentPrint.skipOriginalToolchangeOnLayer and currentPrint.primeTower and currentPrint.primeTower.toolchange:
-        if f.tell() == currentPrint.primeTower.toolchange.start:
-          print(f"start skip {f.tell()}")
-          skipWrite = True
-          out.write("; Original Toolchange skipped\n")
-        if f.tell() == currentPrint.primeTower.toolchange.end:
-          if skipWrite:
-            print(f"end skip at {f.tell()} {currentPrint.primeTower.toolchange.end}")
-          skipWrite = False
+          #out.write(cl)
+          #print(f"test2{cp}")
+          writeWithColorFilter(out, cl, loadedColors)
 
-      if skipWrite == False:
-        #out.write(cl)
-        #print(f"test2{cp}")
-        writeWithColorFilter(out, cl, loadedColors)
+        # Toolchange insertion after the current line is read and written to output
+        if currentPrint.toolchangeBareInsertionPoint:
+          if f.tell() == currentPrint.toolchangeBareInsertionPoint.start:
+            #insert toolchare bare
+            printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(currentPrint.toolchangeNewColorIndex, loadedColors)
+            out.write(f"; Toolchange (minimal) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
+            # normally we would replace the color with replacement color in writeWithColorFilter() but we are replacing multiple lines so this will write directly
+            with open(toolchangeBareFile, mode='r') as tc_bare:
+              tc_bare_code = tc_bare.read().replace('XX', str(printingToolchangeNewColorIndex))
+              out.write(tc_bare_code)
+            currentPrint.printingColor = printingToolchangeNewColorIndex
+            currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
+        
+        if currentPrint.toolchangeFullInsertionPoint:
+          if f.tell() == currentPrint.toolchangeFullInsertionPoint.start:
+            #insert toolchange full
+            printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(currentPrint.toolchangeNewColorIndex, loadedColors)
+            out.write(f"; Prime Tower and Toolchange (full) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
 
-      # Toolchange insertion after the current line is read and written to output
-      if currentPrint.toolchangeBareInsertionPoint:
-        if f.tell() == currentPrint.toolchangeBareInsertionPoint.start:
-          #insert toolchare bare
-          printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(currentPrint.toolchangeNewColorIndex, loadedColors)
-          out.write(f"; Toolchange (minimal) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
-          # normally we would replace the color with replacement color in writeWithColorFilter() but we are replacing multiple lines so this will write directly
-          with open(toolchangeBareFile, mode='r') as tc_bare:
-            tc_bare_code = tc_bare.read().replace('XX', str(printingToolchangeNewColorIndex))
-            out.write(tc_bare_code)
-          currentPrint.printingColor = printingToolchangeNewColorIndex
-          currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
-      
-      if currentPrint.toolchangeFullInsertionPoint:
-        if f.tell() == currentPrint.toolchangeFullInsertionPoint.start:
-          #insert toolchange full
-          printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(currentPrint.toolchangeNewColorIndex, loadedColors)
-          out.write(f"; Prime Tower and Toolchange (full) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
+            # Seek to original prime tower and toolchange position. Write prime tower to output. Seek back to while loop reading position.
+            cp = f.tell()
+            f.seek(currentPrint.primeTower.start, os.SEEK_SET)
+            #print(f"test3{cp} {currentPrint.primeTower.start} {currentPrint.primeTower.end}")
+            while f.tell() <= currentPrint.primeTower.end:
+              #print(f"test4 {cp} {f.tell()} {currentPrint.primeTower.start} {currentPrint.primeTower.end}")
+              cl = f.readline()
+              #print(f"test5 {cp} {f.tell()} {currentPrint.primeTower.start} {currentPrint.primeTower.end}")
+              cl = substituteNewColor(cl, currentPrint.toolchangeNewColorIndex)
+              #out.write(cl)
+              #print(f"test{cp}")
+              writeWithColorFilter(out, cl, loadedColors)
+            f.seek(cp, os.SEEK_SET)
+            currentPrint.printingColor = currentPrint.toolchangeNewColorIndex
+            currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
 
-          # Seek to original prime tower and toolchange position. Write prime tower to output. Seek back to while loop reading position.
-          cp = f.tell()
-          f.seek(currentPrint.primeTower.start, os.SEEK_SET)
-          #print(f"test3{cp} {currentPrint.primeTower.start} {currentPrint.primeTower.end}")
-          while f.tell() <= currentPrint.primeTower.end:
-            #print(f"test4 {cp} {f.tell()} {currentPrint.primeTower.start} {currentPrint.primeTower.end}")
-            cl = f.readline()
-            #print(f"test5 {cp} {f.tell()} {currentPrint.primeTower.start} {currentPrint.primeTower.end}")
-            cl = substituteNewColor(cl, currentPrint.toolchangeNewColorIndex)
-            #out.write(cl)
-            #print(f"test{cp}")
-            writeWithColorFilter(out, cl, loadedColors)
-          f.seek(cp, os.SEEK_SET)
-          currentPrint.printingColor = currentPrint.toolchangeNewColorIndex
-          currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
-
+      item = StatusQueueItem()
+      item.status = f"Completed at {currentPrint.height}"
+      item.progress = 99.99
+      statusQueue.put(item=item)
+  except PermissionError as e:
     item = StatusQueueItem()
-    item.status = f"Completed at {currentPrint.height}"
-    item.progress = 99.9
+    item.status = f"Failed to open {e}"
     statusQueue.put(item=item)

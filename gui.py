@@ -13,15 +13,35 @@ import queue
 from map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = True
+TEST_MODE = False
+
+# Options keys
+IMPORT_GCODE_FILENAME = 'importGcodeFilename'
+IMPORT_OPTIONS_FILENAME = 'importOptionsFilename'
+EXPORT_GCODE_FILENAME = 'exportGcodeFilename'
+
+MODEL_TO_REAL_WORLD_DEFAULT_UNITS = 'modelToRealWorldDefaultUnits'
+MODEL_ONE_TO_N_VERTICAL_SCALE = 'modelOneToNVerticalScale'
+MODEL_SEA_LEVEL_BASE_THICKNESS = 'modelSeaLevelBaseThickness'
+
+REAL_WORLD_ISOLINE_ELEVATION_INTERVAL = 'realWorldIsolineElevationInterval'
+REAL_WORLD_ISOLINE_ELEVATION_START = 'realWorldIsolineElevationStart'
+REAL_WORLD_ISOLINE_ELEVATION_END = 'realWorldIsolineElevationEnd'
+MODEL_ISOLINE_HEIGHT = 'modelIsolineHeight' #in model units
+ISOLINE_COLOR_INDEX = 'isolineColorIndex'
+
+REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START = 'realWorldElevationReplacementColorStart'
+REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END = 'realWorldElevationReplacementColorEnd'
+REPLACEMENT_COLOR_INDEX = 'replacementColorIndex'
+REPLACEMENT_ORIGINAL_COLOR_INDEX = 'replacementOriginalColorIndex'
+
+#COLOR_INDEX = 'colorIndex'
+#ORIGINAL_COLOR_INDEX = 'originalColorIndex'
 
 userOptions = {}
 
-def select_file(filetypes):
-  filetypes = (
-    ('text files', '*.txt'),
-    ('All files', '*.*')
-  )
+def select_file(filetypes:[tuple]):
+  filetypes.append(('All files', '*.*'))
 
   filename = fd.askopenfilename(
     title='Open a file',
@@ -32,7 +52,7 @@ def select_file(filetypes):
 
 def truncateMiddleLength(s, length):
   if len(s) > length:
-    s = f"{s[:length/2-3]}...{s[-length/2:]}"
+    s = f"{s[:int(length/2)-3]}...{s[-int(length/2):]}"
   return s
 
 def addExportToFilename(fn):
@@ -47,7 +67,7 @@ class App(tk.Tk):
     super().__init__()
 
     self.title('Map Feature Gcode Post Processing')
-    self.minsize(200, 200)
+    self.minsize(500, 200)
 
     # configure the grid
     self.columnconfigure(0, weight=1)
@@ -55,7 +75,7 @@ class App(tk.Tk):
 
     self.queue = queue
     self.status = tk.StringVar()
-    self.status.set('---')
+    self.status.set('')
     self.progress = tk.DoubleVar()
     self.postProcessThread: threading.Thread = None
     self.create_widgets()
@@ -63,20 +83,20 @@ class App(tk.Tk):
   def create_widgets(self):
 
     def selectImportGcodeFile():
-      fn = select_file(('Gcode file', '*.gcode'))
+      fn = select_file([('Gcode file', '*.gcode')])
       importGcodeButton.config(text=truncateMiddleLength(fn, 50))
       exportFn = addExportToFilename(fn)
       exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
       userOptions[IMPORT_GCODE_FILENAME] = fn
-      userOptions[EXPORT_GCODE_FILENAME] = fn
+      userOptions[EXPORT_GCODE_FILENAME] = exportFn
 
     def selectOptionsFile():
-      fn = select_file(('JSON file', '*.json'))
+      fn = select_file([('JSON file', '*.json')])
       importOptionsButton.config(text=truncateMiddleLength(fn, 50))
       userOptions[IMPORT_OPTIONS_FILENAME] = fn
 
     def selectExportGcodeFile():
-      fn = select_file(('JSON file', '*.json'))
+      fn = select_file([('Gcode file', '*.gcode')])
       if fn == userOptions[IMPORT_GCODE_FILENAME]:
         fn = addExportToFilename(fn)
         showinfo(
@@ -127,7 +147,8 @@ class App(tk.Tk):
 
     self.processStatusLabel = tk.Label(
       master=self,
-      textvariable=self.status
+      textvariable=self.status,
+      wraplength=450
     )
     self.processStatusLabel.grid(row=4, column=0, columnspan=2, padx=10, sticky=tk.EW)
     self.processStatusProgressBar = ttk.Progressbar(
@@ -138,6 +159,8 @@ class App(tk.Tk):
     self.processStatusProgressBar.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
 
     def startPostProcess():
+      self.status.set('Running')
+      self.progress.set(0)
 
       def postProcessTask():
         periodicColors = []
@@ -160,12 +183,15 @@ class App(tk.Tk):
             )
             return
           
+          # Read in user options
           with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
             try:
               data = json.load(f)
               if isinstance(data,dict):
                 for item in data.items():
-                  userOptions[item[0]] = userOptions[item[1]]
+                  userOptions[item[0]] = item[1]
+              else:
+                raise ValueError()
             except ValueError:
               showinfo(
                 title='Unable to load options',
@@ -173,6 +199,9 @@ class App(tk.Tk):
               )
               return
 
+
+
+          print(userOptions)
           periodicColors: list[PeriodicColor] = [
             createIsoline(
               modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
@@ -190,8 +219,8 @@ class App(tk.Tk):
               modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
               modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
               modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-              realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_START],
-              realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_END],
+              realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START],
+              realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END],
               colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
               originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
             )
