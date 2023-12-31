@@ -153,9 +153,6 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
     if insertionPoint == None:
       print(f"Failed to find toolchange insertion point at layer Z_HEIGHT {printState.height}")
 
-
-      
-
     isPeriodicLine = shouldLayerBePeriodicLine(printState, pcs[0]) if len(pcs) > 0 else False
     print(f"Is printing periodic color {printState.printingPeriodicColor}")
     print(f"Is periodic line {isPeriodicLine}")
@@ -182,8 +179,11 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
           else: 
             printState.toolchangeBareInsertionPoint = insertionPoint
         else:
-          # if no prime block (and no toolchange), switch toolhead, no prime block. Do toolchange after M991. If toolchange did exist but no prime block, same thing.
+          # if no prime block (and no toolchange), switch toolhead, no prime block. Do toolchange after M991. If toolchange did exist but no prime block, skip original toolchange.
           printState.toolchangeBareInsertionPoint = insertionPoint
+          # If only toolchange exists and no prime tower was found. Skip the toolchange
+          if printState.primeTower and printState.primeTower.toolchange and printState.primeTower.toolchange.start:
+            printState.skipOriginalToolchangeOnLayer
 
       # Previously printing periodic color, new toolchange to original color
       else:
@@ -220,20 +220,35 @@ def findLayerFeaturePrimeTower(f: typing.TextIO):
     stopObjMatch = re.match(STOP_OBJECT, cl)
     featureMatch = re.match(FEATURE, cl)
     toolchangeStartMatch = re.match(TOOLCHANGE_START, cl)
+    m620Match = re.match(M620, cl)
     wipeSpiralLiftMatch = re.match(WIPE_SPIRAL_LIFT, cl)
-    m692Match = re.match(M621, cl)
+    m621Match = re.match(M621, cl)
     startObjMatch = re.match(START_OBJECT, cl)
 
     if changeLayerMatch:
       print('got new layer at ',f.tell(),'before prime tower')
       return None
 
+    # Find prime tower start or toolchange start
     if stopObjMatch:
       primeTower.start = f.tell()
       primeTower.featureType = None
-    elif primeTower.start == 0:
+    # toolchange starts at TOOLCHANGE_START or before M620 (prefer TOOLCHANGE_START)
+    elif toolchangeStartMatch: 
+      primeTower.toolchange = Feature()
+      primeTower.toolchange.featureType = 'Toolchange'
+      primeTower.toolchange.start = f.tell()
+    elif m620Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
+      primeTower.toolchange = Feature()
+      primeTower.toolchange.featureType = 'Toolchange'
+      primeTower.toolchange.start = f.tell() - len(cl)
+
+    # Keep looking if primetower or toolchange start have not been found
+    elif primeTower.start == 0 and (primeTower.toolchange == None or primeTower.toolchange.start == 0):
       continue
-    elif primeTower.featureType == None: # Look for FEATURE tag
+
+    # Look for FEATURE to validate we actually found the prime tower earlier
+    elif primeTower.start and primeTower.featureType == None: # Look for FEATURE tag
       if featureMatch:
         if featureMatch.groups()[0] == PRIME_TOWER:
           primeTower.featureType = featureMatch.groups()[0]
@@ -241,18 +256,20 @@ def findLayerFeaturePrimeTower(f: typing.TextIO):
           primeTower.start = 0
       else:
         continue
-    # Look for start object and toolchange
-    elif toolchangeStartMatch: 
-      primeTower.toolchange = Feature()
-      primeTower.toolchange.featureType = 'Toolchange'
-    elif wipeSpiralLiftMatch:
-      primeTower.toolchange.start = f.tell()
-    elif m692Match:
+
+    # Look for toolchange end if we already found the toolchange start
+    elif m621Match and primeTower.toolchange and primeTower.toolchange.start:
       primeTower.toolchange.end = f.tell()
-    elif startObjMatch:
+    # Look for prime tower end
+    elif startObjMatch and primeTower.start:
         primeTower.end = f.tell() - len(cl)
         break
   return primeTower
+
+    #elif wipeSpiralLiftMatch:
+    #  primeTower.toolchange.start = f.tell()
+    # toolchange ends after M621
+   
   
 def findToolchangeInsertionPoint(f: typing.TextIO):
   insertionPoint = Feature()
@@ -330,8 +347,9 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
           print(f"toolchangeNewColorIndex {currentPrint.toolchangeNewColorIndex}")
           print(f"skipOriginalPrimeTowerAndToolchangeOnLayer {currentPrint.skipOriginalPrimeTowerAndToolchangeOnLayer}")
           print(f"skipOriginalToolchangeOnLayer {currentPrint.skipOriginalToolchangeOnLayer}")
-          print(f"primetower.start {currentPrint.primeTower.start}")
-          print(f"primetower.end {currentPrint.primeTower.end}")
+          if currentPrint.primeTower:
+            print(f"primetower.start {currentPrint.primeTower.start}")
+            print(f"primetower.end {currentPrint.primeTower.end}")
           item = StatusQueueItem()
           item.status = f"Current Height {currentPrint.height}"
           item.progress = cp/lp * 100
