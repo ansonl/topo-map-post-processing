@@ -6,13 +6,46 @@ This app adds additional features to the model by post processing sliced [3D pri
 
 ![map feature gcode post processing screenshot](/assets/screenshot.png)
 
-Only one isoline interval and colored elevation range is supported but the implementation can support more. If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling through my [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
+Only one isoline interval and colored elevation range is exposed at the moment but the implementation could support more. If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling through my [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
 
 ## Current G-code flavors supported
 
-- Marlin 2 (sliced from Bambu Studio) for Bambu printers
+- Marlin 2 (Bambu Studio)
 
-If you would like support for your printer G-code flavor to be added, please open an issue and your printer can be used for testing.
+If you would like support for your printer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
+
+## Slicer Setup
+
+### Set Printer G-code
+
+Add markers in your slicer software G-code for the end of new layer change and start and end of toolchange.
+
+#### PrusaSlicer / BambuStudio steps
+
+1. Printer > Settings > **Custom G-code / Machine G-code**
+
+2. Add `; MFPP LAYER CHANGE END` on a new line at the end of **After layer change G-code / Layer change G-code**.
+
+3. Add `; MFPP TOOLCHANGE START`  on a new line at the beginning of **Tool change G-code / Change filament G-code**.
+
+4. Add `; MFPP TOOLCHANGE END`  on a new line at the end of **Tool change G-code / Change filament G-code**.
+
+5. The resulting settings text fields should have an order like below
+
+##### After layer change G-code
+
+```gcode
+Original layer change G-code stays here
+; MFPP LAYER CHANGE END
+```
+
+##### Tool change G-code
+
+```gcode
+; MFPP TOOLCHANGE START
+Original toolchange G-code stays here
+; MFPP TOOLCHANGE END
+```
 
 ## Feature Options
 
@@ -82,3 +115,11 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 **Issue:** When this script is run on Windows, it can only correctly process G-code generated on a Windows computer. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers)
 
 **Solution:** Either convert a G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows.
+
+## License and Disclaimer
+
+GNU AFFERO GENERAL PUBLIC LICENSE v3.0
+
+Copyright © 2023 Anson Liu
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

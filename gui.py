@@ -295,7 +295,7 @@ class App(tk.Tk):
             )
             print("Added replacement color based on options")
           
-        process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
+        process(gcodeFlavor=MARLIN_2_BAMBUSLICER_MARKED_GCODE, inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
 
       startPostProcessButton["state"] = "disabled"
 

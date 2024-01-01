@@ -1,5 +1,14 @@
 import re, os, typing, queue
 
+# Gcode flavors
+MARLIN_2_BAMBUSLICER_OLD = 'marlin2bambuslicer_old'
+MARLIN_2_BAMBUSLICER_MARKED_GCODE = 'marlin2bambuslicer_markedtoolchangegcode'
+
+# Universal Gcode Constants
+UNIVERSAL_TOOLCHANGE_START = '^; MFPP TOOLCHANGE START'
+UNIVERSAL_TOOLCHANGE_END = '^; MFPP TOOLCHANGE END'
+UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
+
 # Bambu Gcode Constants
 STOP_OBJECT = '^; stop printing object, unique label id:\s(\d*)'
 FEATURE = '^; FEATURE:\s(.*)'
@@ -121,7 +130,7 @@ def updateReplacementColors(printState: PrintState, rcs: list[ReplacementColorAt
     elif loadedColors[rc.originalColorIndex].replacementColorIndex == rc.colorIndex:
       loadedColors[rc.originalColorIndex].replacementColorIndex = -1
 
-def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs: list[ReplacementColorAtHeight]):
+def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicColor], rcs: list[ReplacementColorAtHeight]):
   cl = f.readline()
   # Look for start of layer
   changeLayerMatch = re.match(CHANGE_LAYER, cl)
@@ -150,9 +159,9 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
     updateReplacementColors(printState, rcs)
 
     cp = f.tell()  
-    printState.primeTower = findLayerFeaturePrimeTower(f)
+    printState.primeTower = findLayerFeaturePrimeTower(f, gf)
     f.seek(cp, os.SEEK_SET)
-    insertionPoint = findToolchangeInsertionPoint(f)
+    insertionPoint = findToolchangeInsertionPoint(f, gf)
     f.seek(cp, os.SEEK_SET)
 
     if insertionPoint == None:
@@ -216,91 +225,154 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
     return printState
   return None
 
-def findLayerFeaturePrimeTower(f: typing.TextIO):
+def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
   primeTower = Feature()
-  cl = True
-  while cl:
-    cl = f.readline()
-    changeLayerMatch = re.match(CHANGE_LAYER, cl)
-    stopObjMatch = re.match(STOP_OBJECT, cl)
-    featureMatch = re.match(FEATURE, cl)
-    toolchangeStartMatch = re.match(TOOLCHANGE_START, cl)
-    g392Match = re.match(G392, cl)
-    m620Match = re.match(M620, cl)
-    wipeSpiralLiftMatch = re.match(WIPE_SPIRAL_LIFT, cl)
-    m621Match = re.match(M621, cl)
-    startObjMatch = re.match(START_OBJECT, cl)
+  if gf == MARLIN_2_BAMBUSLICER_MARKED_GCODE:
+    cl = True
+    while cl:
+      cl = f.readline()
+      changeLayerMatch = re.match(CHANGE_LAYER, cl)
+      stopObjMatch = re.match(STOP_OBJECT, cl)
+      featureMatch = re.match(FEATURE, cl)
+      univeralToolchangeStartMatch = re.match(UNIVERSAL_TOOLCHANGE_START, cl)
+      univeralToolchangeEndMatch = re.match(UNIVERSAL_TOOLCHANGE_END, cl)
+      startObjMatch = re.match(START_OBJECT, cl)
 
-    if changeLayerMatch:
-      print('got new layer at ',f.tell(),'before prime tower')
-      return None
+      if changeLayerMatch:
+        print('got new layer at ',f.tell(),'before prime tower')
+        return None
 
-    # Find prime tower start or toolchange start
-    if stopObjMatch:
-      primeTower.start = f.tell()
-      primeTower.featureType = None
-    # toolchange starts at TOOLCHANGE_START or before M620 (prefer in order TOOLCHANGE_START, G392, M620)
-    elif toolchangeStartMatch: 
-      primeTower.toolchange = Feature()
-      primeTower.toolchange.featureType = 'Toolchange'
-      primeTower.toolchange.start = f.tell()
-    elif g392Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
-      primeTower.toolchange = Feature()
-      primeTower.toolchange.featureType = 'Toolchange'
-      primeTower.toolchange.start = f.tell() - len(cl)
-    elif m620Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
-      primeTower.toolchange = Feature()
-      primeTower.toolchange.featureType = 'Toolchange'
-      primeTower.toolchange.start = f.tell() - len(cl)
-
-    # Keep looking if primetower or toolchange start have not been found
-    elif primeTower.start == 0 and (primeTower.toolchange == None or primeTower.toolchange.start == 0):
-      continue
-
-    # Look for FEATURE to validate we actually found the prime tower earlier
-    elif primeTower.start and primeTower.featureType == None: # Look for FEATURE tag
-      if featureMatch:
-        if featureMatch.groups()[0] == PRIME_TOWER:
-          primeTower.featureType = featureMatch.groups()[0]
-        else:
-          primeTower.start = 0
-      else:
+      # Find prime tower start or toolchange start
+      if stopObjMatch:
+        primeTower.start = f.tell()
+        primeTower.featureType = None
+      # toolchange starts at UNIVERSAL_TOOLCHANGE_START
+      elif univeralToolchangeStartMatch: 
+        primeTower.toolchange = Feature()
+        primeTower.toolchange.featureType = 'Toolchange'
+        primeTower.toolchange.start = f.tell() - len(cl)
+      # Keep looking if primetower or toolchange start have not been found
+      elif primeTower.start == 0 and (primeTower.toolchange == None or primeTower.toolchange.start == 0):
         continue
 
-    # Look for toolchange end if we already found the toolchange start
-    elif m621Match and primeTower.toolchange and primeTower.toolchange.start:
-      primeTower.toolchange.end = f.tell()
-    # Look for prime tower end
-    elif startObjMatch and primeTower.start:
-        primeTower.end = f.tell() - len(cl)
-        break
-  return primeTower
+      # Look for FEATURE to validate we actually found the prime tower earlier
+      elif primeTower.start and primeTower.featureType == None: # Look for FEATURE tag
+        if featureMatch:
+          if featureMatch.groups()[0] == PRIME_TOWER:
+            primeTower.featureType = featureMatch.groups()[0]
+          else:
+            primeTower.start = 0
+        else:
+          continue
 
-    #elif wipeSpiralLiftMatch:
-    #  primeTower.toolchange.start = f.tell()
-    # toolchange ends after M621
+      # Look for UNIVERSAL_TOOLCHANGE_END if we already found the toolchange start
+      elif univeralToolchangeEndMatch and primeTower.toolchange and primeTower.toolchange.start:
+        primeTower.toolchange.end = f.tell()
+      # Look for prime tower end
+      elif startObjMatch and primeTower.start:
+          primeTower.end = f.tell() - len(cl)
+          break
+    return primeTower
+  else:
+    cl = True
+    while cl:
+      cl = f.readline()
+      changeLayerMatch = re.match(CHANGE_LAYER, cl)
+      stopObjMatch = re.match(STOP_OBJECT, cl)
+      featureMatch = re.match(FEATURE, cl)
+      toolchangeStartMatch = re.match(TOOLCHANGE_START, cl)
+      g392Match = re.match(G392, cl)
+      m620Match = re.match(M620, cl)
+      wipeSpiralLiftMatch = re.match(WIPE_SPIRAL_LIFT, cl)
+      m621Match = re.match(M621, cl)
+      startObjMatch = re.match(START_OBJECT, cl)
+
+      if changeLayerMatch:
+        print('got new layer at ',f.tell(),'before prime tower')
+        return None
+
+      # Find prime tower start or toolchange start
+      if stopObjMatch:
+        primeTower.start = f.tell()
+        primeTower.featureType = None
+      # toolchange starts at TOOLCHANGE_START or before M620 (prefer in order TOOLCHANGE_START, G392, M620)
+      elif toolchangeStartMatch: 
+        primeTower.toolchange = Feature()
+        primeTower.toolchange.featureType = 'Toolchange'
+        primeTower.toolchange.start = f.tell()
+      elif g392Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
+        primeTower.toolchange = Feature()
+        primeTower.toolchange.featureType = 'Toolchange'
+        primeTower.toolchange.start = f.tell() - len(cl)
+      elif m620Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
+        primeTower.toolchange = Feature()
+        primeTower.toolchange.featureType = 'Toolchange'
+        primeTower.toolchange.start = f.tell() - len(cl)
+
+      # Keep looking if primetower or toolchange start have not been found
+      elif primeTower.start == 0 and (primeTower.toolchange == None or primeTower.toolchange.start == 0):
+        continue
+
+      # Look for FEATURE to validate we actually found the prime tower earlier
+      elif primeTower.start and primeTower.featureType == None: # Look for FEATURE tag
+        if featureMatch:
+          if featureMatch.groups()[0] == PRIME_TOWER:
+            primeTower.featureType = featureMatch.groups()[0]
+          else:
+            primeTower.start = 0
+        else:
+          continue
+
+      # Look for toolchange end if we already found the toolchange start
+      elif m621Match and primeTower.toolchange and primeTower.toolchange.start:
+        primeTower.toolchange.end = f.tell()
+      # Look for prime tower end
+      elif startObjMatch and primeTower.start:
+          primeTower.end = f.tell() - len(cl)
+          break
+    return primeTower
+
+      #elif wipeSpiralLiftMatch:
+      #  primeTower.toolchange.start = f.tell()
+      # toolchange ends after M621
    
   
-def findToolchangeInsertionPoint(f: typing.TextIO):
+def findToolchangeInsertionPoint(f: typing.TextIO, gf: str):
   insertionPoint = Feature()
-  insertionPoint.featureType = M991
-  cl = True
-  while cl:
-    cl = f.readline()
-    m991Match = re.match(M991, cl)
-    changeLayerMatch = re.match(CHANGE_LAYER, cl)
-    featureMatch = re.match(FEATURE, cl)
-    if m991Match:
-      insertionPoint.start = f.tell()
-      break
-    elif changeLayerMatch:
-      return None
-    elif featureMatch:
-      return None
-  return insertionPoint
+  if gf == MARLIN_2_BAMBUSLICER_MARKED_GCODE:
+    insertionPoint.featureType = UNIVERSAL_LAYER_CHANGE_END
+    cl = True
+    while cl:
+      cl = f.readline()
+      universalLayerChangeEndMatch = re.match(UNIVERSAL_LAYER_CHANGE_END, cl)
+      changeLayerMatch = re.match(CHANGE_LAYER, cl)
+      featureMatch = re.match(FEATURE, cl)
+      if universalLayerChangeEndMatch:
+        insertionPoint.start = f.tell()
+        break
+      elif changeLayerMatch:
+        return None
+      elif featureMatch:
+        return None
+    return insertionPoint
+  else:
+    insertionPoint.featureType = M991
+    cl = True
+    while cl:
+      cl = f.readline()
+      m991Match = re.match(M991, cl)
+      changeLayerMatch = re.match(CHANGE_LAYER, cl)
+      featureMatch = re.match(FEATURE, cl)
+      if m991Match:
+        insertionPoint.start = f.tell()
+        break
+      elif changeLayerMatch:
+        return None
+      elif featureMatch:
+        return None
+    return insertionPoint
 
 def substituteNewColor(cl, newColorIndex: int):
-  cl = re.sub(G392, f"G392 S{newColorIndex}", cl)
   cl = re.sub(M620, f"M620 S{newColorIndex}A", cl)
   cl = re.sub(TOOLCHANGE_T, f"T{newColorIndex}", cl)
   cl = re.sub(M621, f"M621 S{newColorIndex}A", cl)
@@ -318,14 +390,11 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   cmdColorIndex = -1
   #print(f"writewithcolorfilter {cl}")
   #look for color specific matches to find the original color to check for replacement colors
-  g392Match = re.match(G392, cl)
   m620Match = re.match(M620, cl)
   toolchangeMatch = re.match(TOOLCHANGE_T, cl)
   m621Match = re.match(M621, cl)
 
-  if g392Match:
-    cmdColorIndex = int(g392Match.groups()[0])
-  elif m620Match:
+  if m620Match:
     cmdColorIndex = int(m620Match.groups()[0])
   elif toolchangeMatch:
     cmdColorIndex = int(toolchangeMatch.groups()[0])
@@ -337,7 +406,7 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   
   out.write(cl)
 
-def process(inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
+def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
   try:
     with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
       currentPrint: PrintState = PrintState()
@@ -355,7 +424,7 @@ def process(inputFile: str, outputFile: str, toolchangeBareFile: str, periodicCo
       while cl:
         # Look for start of a layer CHANGE_LAYER
         cp = f.tell()
-        foundNewLayer = findChangeLayer(f,currentPrint, periodicColors, replacementColors)
+        foundNewLayer = findChangeLayer(f,lastPrintState=currentPrint, gf=gcodeFlavor, pcs=periodicColors, rcs=replacementColors)
         if foundNewLayer:
           currentPrint = foundNewLayer
           print(f"toolchangeNewColorIndex {currentPrint.toolchangeNewColorIndex}")
