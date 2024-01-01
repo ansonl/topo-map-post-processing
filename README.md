@@ -114,7 +114,9 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 
 You must supply a file containing a minimal toolchange G-code sequence for your printer.
 
-The location for next extruder index (the tool/filament/color being switched to) must be replaced with `XX` in this text file. All instances of `XX` are replaced with the next extruder index. *E.g. When switching to extruder 1, `TXX` will become `T1`*
+1. The location for next extruder index (the tool/filament/color being switched to) must be replaced with `XX` in this text file. All instances of `XX` are replaced with the next extruder index. *E.g. When switching to extruder 1, `TXX` will become `T1`*
+
+2. It is recommended to convert moves that change depending on the current print progress from absolute to relative.
 
 This toolchange is used when a toolchange is needed but the existing Prime Tower and toolchange G-code cannot be used.
 

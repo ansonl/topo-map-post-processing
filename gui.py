@@ -119,7 +119,7 @@ class App(tk.Tk):
     gcodeFlavorLabel.grid(row=0, column=0, sticky=tk.W, padx=10)
     gcodeFlavorComboBox = ttk.Combobox(
       state="readonly",
-      values=['Marlin 2 (Bambu)']
+      values=['Marlin 2 (PrusaSlicer/Bambu Studio)']
     )
     gcodeFlavorComboBox.current(0)
     gcodeFlavorComboBox.grid(row=0, column=1, sticky=tk.EW, padx=10, pady=10)
@@ -234,6 +234,7 @@ class App(tk.Tk):
 
         if TEST_MODE:
           userOptions[IMPORT_GCODE_FILENAME] = 'dicetest.gcode'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-minimal-prusa-xl.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dicetest-export.gcode'
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)

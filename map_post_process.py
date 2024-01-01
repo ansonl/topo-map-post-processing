@@ -10,8 +10,8 @@ UNIVERSAL_TOOLCHANGE_END = '^; MFPP TOOLCHANGE END'
 UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 
 # Bambu Gcode Constants
-STOP_OBJECT = '^; stop printing object, unique label id:\s(\d*)'
-FEATURE = '^; FEATURE:\s(.*)'
+STOP_OBJECT_BAMBUSTUDIO = '^; stop printing object, unique label id:\s(\d*)'
+FEATURE_BAMBUSTUDIO = '^; FEATURE: (.*)'
 PRIME_TOWER = 'Prime tower'
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
 # Toolchange (change_filament) start
@@ -27,15 +27,33 @@ M621 = '^M621 S(\d*)A'
 #; WIPE_TOWER_END
 #G92 E0
 #; CP TOOLCHANGE END
-START_OBJECT = '^; start printing object, unique label id:\s(\d*)'
+START_OBJECT_BAMBUSTUDIO = '^; start printing object, unique label id:\s(\d*)'
 
-CHANGE_LAYER = '^; CHANGE_LAYER'
-Z_HEIGHT = '^; Z_HEIGHT:\s(\d*\.?\d*)' # Current object layer height including current layer height
-LAYER_HEIGHT = '^; LAYER_HEIGHT:\s(\d*\.?\d*)' # Current layer height
+# Prusa Gcode Constants
+STOP_OBJECT_PRUSASLICER = '^; stop printing object'
+# wipe off object
+FEATURE_PRUSASLICER = '^;TYPE:(.*)'
+WIPE_TOWER = 'Wipe tower'
+#TOOLCHANGE_START
+# prime tower line with old tool
+#UNIVERSAL_TOOLCHANGE_START
+#UNIVERSAL_TOOLCHANGE_END
+#; CP TOOLCHANGE WIPE
+# prime tower lines in new tool
+#; CP TOOLCHANGE END
+#;Type:Wipe tower
+# prime tower more lines
+START_OBJECT_PRUSASLICER = '^; printing object'
+
+CHANGE_LAYER_BAMBUSTUDIO = '^; CHANGE_LAYER'
+Z_HEIGHT_BAMBUSTUDIO = '^; Z_HEIGHT: (\d*\.?\d*)' # Current object layer height including current layer height
+LAYER_HEIGHT_BAMBUSTUDIO = '^; LAYER_HEIGHT: (\d*\.?\d*)' # Current layer height
+
+CHANGE_LAYER_PRUSASLICER = '^;LAYER_CHANGE'
+Z_HEIGHT_PRUSASLICER = '^;Z:(\d*\.?\d*)' # Current object layer height including current layer height
+LAYER_HEIGHT_PRUSASLICER = '^;HEIGHT:(\d*\.?\d*)' # Current layer height
 
 M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
-
-#toolchangeBareFile = 'toolchange-bare.gcode'
 
 class StatusQueueItem:
   def __init__(self):
@@ -133,8 +151,9 @@ def updateReplacementColors(printState: PrintState, rcs: list[ReplacementColorAt
 def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicColor], rcs: list[ReplacementColorAtHeight]):
   cl = f.readline()
   # Look for start of layer
-  changeLayerMatch = re.match(CHANGE_LAYER, cl)
-  if changeLayerMatch:
+  changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
+  changeLayerMatchPrusa = re.match(CHANGE_LAYER_PRUSASLICER, cl)
+  if changeLayerMatchBambu or changeLayerMatchPrusa:
     # Create new print state for the new found layer and carry over some state that should be preserved between layers.
     printState = PrintState()
     printState.originalColor = lastPrintState.originalColor
@@ -143,20 +162,29 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
 
     # Find Z_HEIGHT value
     cl = f.readline()
-    cl = re.match(Z_HEIGHT, cl)
-    if cl:
-      printState.height = float(cl.groups()[0])
-      #print(f"{Z_HEIGHT} {cl.groups()[0]}")
+    zHeightMatchBambu = re.match(Z_HEIGHT_BAMBUSTUDIO, cl)
+    zHeightMatchPrusa = re.match(Z_HEIGHT_PRUSASLICER, cl)
+    if zHeightMatchBambu or zHeightMatchPrusa:
+      if zHeightMatchBambu:
+        printState.height = float(zHeightMatchBambu.groups()[0])
+      if zHeightMatchPrusa:
+        printState.height = float(zHeightMatchPrusa.groups()[0])
+        #print(f"{Z_HEIGHT} {cl.groups()[0]}")
       print(f"\nProcessing height {printState.height}")
 
     # Find LAYER_HEIGHT value
     cl = f.readline()
-    cl = re.match(LAYER_HEIGHT, cl)
-    if cl:
-      printState.layerHeight = float(cl.groups()[0])
+    layerHeightMatchBambu = re.match(LAYER_HEIGHT_BAMBUSTUDIO, cl)
+    layerHeightMatchPrusa = re.match(LAYER_HEIGHT_PRUSASLICER, cl)
+    if layerHeightMatchBambu or layerHeightMatchPrusa:
+      if layerHeightMatchBambu:
+        printState.layerHeight = float(layerHeightMatchBambu.groups()[0])
+      if layerHeightMatchPrusa:
+        printState.layerHeight = float(layerHeightMatchPrusa.groups()[0])
 
     #update loaded colors replacement color data based on current height
     updateReplacementColors(printState, rcs)
+    print(f"pos {f.tell()} before call findLayerFeaturePrimeTower")
 
     cp = f.tell()  
     printState.primeTower = findLayerFeaturePrimeTower(f, gf)
@@ -231,21 +259,30 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
     cl = True
     while cl:
       cl = f.readline()
-      changeLayerMatch = re.match(CHANGE_LAYER, cl)
-      stopObjMatch = re.match(STOP_OBJECT, cl)
-      featureMatch = re.match(FEATURE, cl)
+      changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
+      changeLayerMatchPrusa = re.match(CHANGE_LAYER_PRUSASLICER, cl)
+      stopObjMatchBambu = re.match(STOP_OBJECT_BAMBUSTUDIO, cl)
+      stopObjMatchPrusa = re.match(STOP_OBJECT_PRUSASLICER, cl)
+      featureMatchBambu = re.match(FEATURE_BAMBUSTUDIO, cl)
+      featureMatchPrusa = re.match(FEATURE_PRUSASLICER, cl)
       univeralToolchangeStartMatch = re.match(UNIVERSAL_TOOLCHANGE_START, cl)
       univeralToolchangeEndMatch = re.match(UNIVERSAL_TOOLCHANGE_END, cl)
-      startObjMatch = re.match(START_OBJECT, cl)
+      startObjMatchBambu = re.match(START_OBJECT_BAMBUSTUDIO, cl)
+      startObjMatchPrusa = re.match(START_OBJECT_PRUSASLICER, cl)
 
-      if changeLayerMatch:
+      if changeLayerMatchBambu or changeLayerMatchPrusa:
         print('got new layer at ',f.tell(),'before prime tower')
         return None
+      
+      #if cl.startswith("; stop printing object"):
+      #  print(f"{stopObjMatchPrusa}")
+      #  print(f"found stop at {f.tell()}")
 
       # Find prime tower start or toolchange start
-      if stopObjMatch:
+      if stopObjMatchBambu or stopObjMatchPrusa:
         primeTower.start = f.tell()
         primeTower.featureType = None
+        print(f"found stop at {f.tell()}")
       # toolchange starts at UNIVERSAL_TOOLCHANGE_START
       elif univeralToolchangeStartMatch: 
         primeTower.toolchange = Feature()
@@ -257,9 +294,13 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
 
       # Look for FEATURE to validate we actually found the prime tower earlier
       elif primeTower.start and primeTower.featureType == None: # Look for FEATURE tag
-        if featureMatch:
-          if featureMatch.groups()[0] == PRIME_TOWER:
-            primeTower.featureType = featureMatch.groups()[0]
+        if featureMatchBambu or featureMatchPrusa:
+          print(f"found feature match at {f.tell()}")
+          if featureMatchBambu and featureMatchBambu.groups()[0] == PRIME_TOWER:
+            primeTower.featureType = PRIME_TOWER
+          elif featureMatchPrusa and featureMatchPrusa.groups()[0] == WIPE_TOWER:
+            print(f"feature match prusa at {f.tell()}")
+            primeTower.featureType = PRIME_TOWER
           else:
             primeTower.start = 0
         else:
@@ -269,10 +310,11 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
       elif univeralToolchangeEndMatch and primeTower.toolchange and primeTower.toolchange.start:
         primeTower.toolchange.end = f.tell()
       # Look for prime tower end
-      elif startObjMatch and primeTower.start:
+      elif (startObjMatchBambu or startObjMatchPrusa) and primeTower.start:
           primeTower.end = f.tell() - len(cl)
           break
     return primeTower
+  '''
   else:
     cl = True
     while cl:
@@ -335,6 +377,7 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
       #elif wipeSpiralLiftMatch:
       #  primeTower.toolchange.start = f.tell()
       # toolchange ends after M621
+  '''
    
   
 def findToolchangeInsertionPoint(f: typing.TextIO, gf: str):
@@ -345,16 +388,19 @@ def findToolchangeInsertionPoint(f: typing.TextIO, gf: str):
     while cl:
       cl = f.readline()
       universalLayerChangeEndMatch = re.match(UNIVERSAL_LAYER_CHANGE_END, cl)
-      changeLayerMatch = re.match(CHANGE_LAYER, cl)
-      featureMatch = re.match(FEATURE, cl)
+      changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
+      changeLayerMatchPrusa = re.match(CHANGE_LAYER_PRUSASLICER, cl)
+      featureMatchBambu = re.match(FEATURE_BAMBUSTUDIO, cl)
+      featureMatchPrusa = re.match(FEATURE_PRUSASLICER, cl)
       if universalLayerChangeEndMatch:
         insertionPoint.start = f.tell()
         break
-      elif changeLayerMatch:
+      elif changeLayerMatchBambu or changeLayerMatchPrusa:
         return None
-      elif featureMatch:
+      elif featureMatchBambu or featureMatchPrusa:
         return None
     return insertionPoint
+  '''
   else:
     insertionPoint.featureType = M991
     cl = True
@@ -371,6 +417,7 @@ def findToolchangeInsertionPoint(f: typing.TextIO, gf: str):
       elif featureMatch:
         return None
     return insertionPoint
+  '''
 
 def substituteNewColor(cl, newColorIndex: int):
   cl = re.sub(M620, f"M620 S{newColorIndex}A", cl)
