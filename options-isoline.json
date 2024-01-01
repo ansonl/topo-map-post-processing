@@ -1,0 +1,10 @@
+{
+  "modelToRealWorldDefaultUnits": 1000,
+  "modelOneToNVerticalScale": 500000,
+  "modelSeaLevelBaseThickness": 0.1,
+  "realWorldIsolineElevationInterval": 500,
+  "realWorldIsolineElevationStart": 200,
+  "realWorldIsolineElevationEnd": 5000,
+  "modelIsolineHeight": 0.5,
+  "isolineColorIndex": 2
+}

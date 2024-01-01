@@ -1,16 +1,22 @@
 import re, os, typing, queue
 
-# Constants
+# Bambu Gcode Constants
 STOP_OBJECT = '^; stop printing object, unique label id:\s(\d*)'
 FEATURE = '^; FEATURE:\s(.*)'
 PRIME_TOWER = 'Prime tower'
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
+# Toolchange (change_filament) start
 M620 = '^M620 S(\d*)A'
-# Toolchange movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
+# Toolchange core movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
 WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
 TOOLCHANGE_T = '^T(?!255$|1000$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
 # Prime tower printing actually starts after M621
 M621 = '^M621 S(\d*)A'
+#; CP TOOLCHANGE WIPE
+# wipe/prime tower here
+#; WIPE_TOWER_END
+#G92 E0
+#; CP TOOLCHANGE END
 START_OBJECT = '^; start printing object, unique label id:\s(\d*)'
 
 CHANGE_LAYER = '^; CHANGE_LAYER'
@@ -19,8 +25,6 @@ LAYER_HEIGHT = '^; LAYER_HEIGHT:\s(\d*\.?\d*)' # Current layer height
 
 M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 
-#inputFile = 'dicetest.gcode'
-#outputFile = 'dicetestout.gcode'
 toolchangeBareFile = 'toolchange-bare.gcode'
 
 class StatusQueueItem:
@@ -183,7 +187,7 @@ def findChangeLayer(f, lastPrintState: PrintState, pcs: list[PeriodicColor], rcs
           printState.toolchangeBareInsertionPoint = insertionPoint
           # If only toolchange exists and no prime tower was found. Skip the toolchange
           if printState.primeTower and printState.primeTower.toolchange and printState.primeTower.toolchange.start:
-            printState.skipOriginalToolchangeOnLayer
+            printState.skipOriginalToolchangeOnLayer = True
 
       # Previously printing periodic color, new toolchange to original color
       else:
@@ -408,7 +412,7 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
               tc_bare_code = tc_bare.read().replace('XX', str(printingToolchangeNewColorIndex))
               out.write(tc_bare_code)
             currentPrint.printingColor = printingToolchangeNewColorIndex
-            currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
+            currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex if len(periodicColors) > 0 else False
         
         if currentPrint.toolchangeFullInsertionPoint:
           if f.tell() == currentPrint.toolchangeFullInsertionPoint.start:
@@ -430,7 +434,7 @@ def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacem
               writeWithColorFilter(out, cl, loadedColors)
             f.seek(cp, os.SEEK_SET)
             currentPrint.printingColor = currentPrint.toolchangeNewColorIndex
-            currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex
+            currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex if len(periodicColors) > 0 else False
 
       item = StatusQueueItem()
       item.status = f"Completed at {currentPrint.height}"

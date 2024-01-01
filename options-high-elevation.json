@@ -1,0 +1,9 @@
+{
+  "modelToRealWorldDefaultUnits": 1000,
+  "modelOneToNVerticalScale": 500000,
+  "modelSeaLevelBaseThickness": 0.1,
+  "realWorldElevationReplacementColorStart": 3650,
+  "realWorldElevationReplacementColorEnd": 7000,
+  "replacementColorIndex": 3,
+  "replacementOriginalColorIndex": 0
+}

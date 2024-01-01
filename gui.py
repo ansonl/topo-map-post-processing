@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog as fd
-from tkinter.messagebox import showinfo
+from tkinter import messagebox
 
 import json
 import os
@@ -14,6 +14,12 @@ from map_post_process import *
 
 # RUNTIME Flag
 TEST_MODE = False
+
+# UI Constants
+APP_NAME = 'Map Features G-code Post Processing'
+APP_VERSION = '0.1'
+POST_PROCESS_BUTTON = 'Post Process'
+POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
 # Options keys
 IMPORT_GCODE_FILENAME = 'importGcodeFilename'
@@ -35,9 +41,28 @@ REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END = 'realWorldElevationReplacementColor
 REPLACEMENT_COLOR_INDEX = 'replacementColorIndex'
 REPLACEMENT_ORIGINAL_COLOR_INDEX = 'replacementOriginalColorIndex'
 
-#COLOR_INDEX = 'colorIndex'
-#ORIGINAL_COLOR_INDEX = 'originalColorIndex'
+periodicColorRequiredOptions = [
+  MODEL_TO_REAL_WORLD_DEFAULT_UNITS,
+  MODEL_ONE_TO_N_VERTICAL_SCALE,
+  MODEL_SEA_LEVEL_BASE_THICKNESS,
+  REAL_WORLD_ISOLINE_ELEVATION_INTERVAL,
+  REAL_WORLD_ISOLINE_ELEVATION_START,
+  REAL_WORLD_ISOLINE_ELEVATION_END,
+  MODEL_ISOLINE_HEIGHT,
+  ISOLINE_COLOR_INDEX
+]
 
+replacementColorRequiredOptions = [
+  MODEL_TO_REAL_WORLD_DEFAULT_UNITS,
+  MODEL_ONE_TO_N_VERTICAL_SCALE,
+  MODEL_SEA_LEVEL_BASE_THICKNESS,
+  REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START,
+  REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END,
+  REPLACEMENT_COLOR_INDEX,
+  REPLACEMENT_ORIGINAL_COLOR_INDEX
+]
+
+# user options dict
 userOptions = {}
 
 def select_file(filetypes:[tuple]):
@@ -66,24 +91,40 @@ class App(tk.Tk):
   def __init__(self, queue: queue.Queue):
     super().__init__()
 
-    self.title('Map Feature Gcode Post Processing')
-    self.minsize(500, 200)
+    self.title(APP_NAME)
+    self.minsize(500, 250)
+    self.resizable(False, False)
 
     # configure the grid
     self.columnconfigure(0, weight=1)
     self.columnconfigure(1, weight=3)
 
     self.queue = queue
-    self.status = tk.StringVar()
-    self.status.set('')
-    self.progress = tk.DoubleVar()
     self.postProcessThread: threading.Thread = None
+
+    # UI strings
+    self.status = tk.StringVar()
+    self.progress = tk.DoubleVar()
+    self.progressButtonString = tk.StringVar(value=POST_PROCESS_BUTTON)
+
     self.create_widgets()
 
   def create_widgets(self):
 
+    gcodeFlavorLabel = tk.Label(
+      master=self,
+      text='G-code Flavor'
+    )
+    gcodeFlavorLabel.grid(row=0, column=0, sticky=tk.W, padx=10)
+    gcodeFlavorComboBox = ttk.Combobox(
+      state="readonly",
+      values=['Marlin 2 (Bambu)']
+    )
+    gcodeFlavorComboBox.current(0)
+    gcodeFlavorComboBox.grid(row=0, column=1, sticky=tk.EW, padx=10, pady=10)
+
     def selectImportGcodeFile():
-      fn = select_file([('Gcode file', '*.gcode')])
+      fn = select_file([('G-code file', '*.gcode')])
       importGcodeButton.config(text=truncateMiddleLength(fn, 50))
       exportFn = addExportToFilename(fn)
       exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
@@ -96,10 +137,10 @@ class App(tk.Tk):
       userOptions[IMPORT_OPTIONS_FILENAME] = fn
 
     def selectExportGcodeFile():
-      fn = select_file([('Gcode file', '*.gcode')])
+      fn = select_file([('G-code file', '*.gcode')])
       if fn == userOptions[IMPORT_GCODE_FILENAME]:
         fn = addExportToFilename(fn)
-        showinfo(
+        messagebox.showinfo(
           title='Invalid selection',
           message='Export file must be different from import file. The export filename has been changed to be different.'
         )
@@ -108,63 +149,69 @@ class App(tk.Tk):
 
     importLabel = tk.Label(
       master=self,
-      text='Print Gcode '
+      text='Print G-code '
     )
-    importLabel.grid(row=0, column=0, sticky=tk.W)
+    importLabel.grid(row=1, column=0, sticky=tk.W, padx=10)
     importGcodeButton = tk.Button(
       master=self,
       text='Select file',
       command=selectImportGcodeFile
     )
-    importGcodeButton.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=5)
+    importGcodeButton.grid(row=1, column=1, sticky=tk.EW, padx=10, pady=5)
 
     optionsLabel = tk.Label(
       master=self,
       text='Options'
     )
-    optionsLabel.grid(row=1, column=0, sticky=tk.W)
+    optionsLabel.grid(row=2, column=0, sticky=tk.W, padx=10)
     importOptionsButton = tk.Button(
       master=self,
       text='Select file',
       command=selectOptionsFile
     )
-    importOptionsButton.grid(row=1, column=1, sticky=tk.EW, padx=5, pady=5)
+    importOptionsButton.grid(row=2, column=1, sticky=tk.EW, padx=10, pady=5)
 
     exportLabel = tk.Label(
       master=self,
-      text='Export Gcode'
+      text='Export G-code'
     )
-    exportLabel.grid(row=2, column=0, sticky=tk.W)
+    exportLabel.grid(row=3, column=0, sticky=tk.W, padx=10)
     exportGcodeButton = tk.Button(
       master=self,
       text='Select file',
       command=selectExportGcodeFile
     )
-    exportGcodeButton.grid(row=2, column=1, sticky=tk.EW, padx=5, pady=5)
+    exportGcodeButton.grid(row=3, column=1, sticky=tk.EW, padx=10, pady=5)
 
     separator = ttk.Separator(self, orient=tk.HORIZONTAL)
-    separator.grid(row=3, column=0, sticky=tk.EW, columnspan=2, padx=5, pady=5)
+    separator.grid(row=4, column=0, sticky=tk.EW, columnspan=2, padx=15, pady=5)
 
     self.processStatusLabel = tk.Label(
       master=self,
       textvariable=self.status,
       wraplength=450
     )
-    self.processStatusLabel.grid(row=4, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusLabel.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
     self.processStatusProgressBar = ttk.Progressbar(
       self,
       orient=tk.HORIZONTAL,
       variable=self.progress
     )
-    self.processStatusProgressBar.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusProgressBar.grid(row=6, column=0, columnspan=2, padx=10, sticky=tk.EW)
 
     def startPostProcess():
-      self.status.set('Running')
       self.progress.set(0)
+      self.progressButtonString.set(POST_PROCESS_BUTTON_PROCESSING)
 
       def postProcessTask():
-        periodicColors = []
-        replacementColors = []
+        global userOptions
+        userOptions = {
+          IMPORT_GCODE_FILENAME : userOptions.get(IMPORT_GCODE_FILENAME),
+          IMPORT_OPTIONS_FILENAME : userOptions.get(IMPORT_OPTIONS_FILENAME),
+          EXPORT_GCODE_FILENAME : userOptions.get(EXPORT_GCODE_FILENAME)
+        }
+        periodicColors: list[PeriodicColor] = []
+        replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
           userOptions[IMPORT_GCODE_FILENAME] = 'dicetest.gcode'
@@ -177,9 +224,9 @@ class App(tk.Tk):
           ]
         else:
           if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
-            showinfo(
+            messagebox.showerror(
                 title='Post Process Requirements',
-                message='Need import, options, and exports specified'
+                message='Need Print Gcode, Options, and Exported Gcode to be  selected.'
             )
             return
           
@@ -193,47 +240,45 @@ class App(tk.Tk):
               else:
                 raise ValueError()
             except ValueError:
-              showinfo(
+              messagebox.showerror(
                 title='Unable to load options',
                 message='Check if options file format is JSON'
               )
               return
 
-
-
           print(userOptions)
-          periodicColors: list[PeriodicColor] = [
-            createIsoline(
-              modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
-              modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
-              modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-              realWorldIsolineElevationInterval=userOptions[REAL_WORLD_ISOLINE_ELEVATION_INTERVAL],
-              realWorldIsolineElevationStart=userOptions[REAL_WORLD_ISOLINE_ELEVATION_START],
-              realWorldIsolineElevationEnd=userOptions[REAL_WORLD_ISOLINE_ELEVATION_END],
-              modelIsolineHeight=userOptions[MODEL_ISOLINE_HEIGHT],
-              colorIndex=userOptions[ISOLINE_COLOR_INDEX]
+          if all (opt in userOptions for opt in periodicColorRequiredOptions):
+            periodicColors.append(
+              createIsoline(
+                modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
+                modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
+                modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
+                realWorldIsolineElevationInterval=userOptions[REAL_WORLD_ISOLINE_ELEVATION_INTERVAL],
+                realWorldIsolineElevationStart=userOptions[REAL_WORLD_ISOLINE_ELEVATION_START],
+                realWorldIsolineElevationEnd=userOptions[REAL_WORLD_ISOLINE_ELEVATION_END],
+                modelIsolineHeight=userOptions[MODEL_ISOLINE_HEIGHT],
+                colorIndex=userOptions[ISOLINE_COLOR_INDEX]
+              )
             )
-          ]
-          replacementColors: list[ReplacementColorAtHeight] = [
-            createReplacementColor(
-              modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
-              modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
-              modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-              realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START],
-              realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END],
-              colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
-              originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
+            print("Added isoline based on options")
+
+          if all (opt in userOptions for opt in replacementColorRequiredOptions):
+            replacementColors.append(
+              createReplacementColor(
+                modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
+                modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
+                modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
+                realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START],
+                realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END],
+                colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
+                originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
+              )
             )
-          ]
+            print("Added replacement color based on options")
           
         process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
 
-        print('process ended')
-        return
-
       startPostProcessButton["state"] = "disabled"
-
-      print('post process thread start')
 
       postProcessThread = threading.Thread(target=postProcessTask)
       postProcessThread.start()
@@ -242,25 +287,32 @@ class App(tk.Tk):
       def resetButton():
         postProcessThread.join()
         startPostProcessButton["state"] = "normal"
+        self.progressButtonString.set(POST_PROCESS_BUTTON)
       threading.Thread(target=resetButton).start()
 
     startPostProcessButton = tk.Button(
       master=self,
-      text='Post Process',
+      textvariable=self.progressButtonString,
       command=startPostProcess
     )
-    startPostProcessButton.grid(row=6, column=0, sticky=tk.EW, columnspan=2, padx=10)
+    startPostProcessButton.grid(row=7, column=0, sticky=tk.EW, columnspan=2, padx=10)
 
     infoButton = tk.Button(
       master=self,
       text='About',
       command=lambda:
-        showinfo(
-          title='Map Feature Gcode Post Processing',
-          message='Add isolines and elevation color changes to your 3D Topo Maps when printed.\n\nVisit www.AnsonLiu.com/maps for more info.'
+        messagebox.showinfo(
+          title=f"{APP_NAME} v{APP_VERSION}",
+          message='Add isolines and elevation color change features to your 3D Topo Maps when printed.\n\n www.AnsonLiu.com/maps'
         )
     )
-    infoButton.grid(row=7, column=1, sticky=tk.EW, columnspan=1, padx=10, pady=10)
+    infoButton.grid(row=8, column=0, sticky=tk.EW, columnspan=1, padx=10, pady=10)
+
+    infoLabel = tk.Label(
+      master=self,
+      text=f"v{APP_VERSION}"
+    )
+    infoLabel.grid(row=8, column=1, sticky=tk.E, padx=10)
 
     
 
