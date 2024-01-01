@@ -6,6 +6,7 @@ FEATURE = '^; FEATURE:\s(.*)'
 PRIME_TOWER = 'Prime tower'
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
 # Toolchange (change_filament) start
+G392 = '^G392 S(\d*)' #G392 only for A1
 M620 = '^M620 S(\d*)A'
 # Toolchange core movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
 WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
@@ -25,7 +26,7 @@ LAYER_HEIGHT = '^; LAYER_HEIGHT:\s(\d*\.?\d*)' # Current layer height
 
 M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 
-toolchangeBareFile = 'toolchange-bare.gcode'
+#toolchangeBareFile = 'toolchange-bare.gcode'
 
 class StatusQueueItem:
   def __init__(self):
@@ -224,6 +225,7 @@ def findLayerFeaturePrimeTower(f: typing.TextIO):
     stopObjMatch = re.match(STOP_OBJECT, cl)
     featureMatch = re.match(FEATURE, cl)
     toolchangeStartMatch = re.match(TOOLCHANGE_START, cl)
+    g392Match = re.match(G392, cl)
     m620Match = re.match(M620, cl)
     wipeSpiralLiftMatch = re.match(WIPE_SPIRAL_LIFT, cl)
     m621Match = re.match(M621, cl)
@@ -237,11 +239,15 @@ def findLayerFeaturePrimeTower(f: typing.TextIO):
     if stopObjMatch:
       primeTower.start = f.tell()
       primeTower.featureType = None
-    # toolchange starts at TOOLCHANGE_START or before M620 (prefer TOOLCHANGE_START)
+    # toolchange starts at TOOLCHANGE_START or before M620 (prefer in order TOOLCHANGE_START, G392, M620)
     elif toolchangeStartMatch: 
       primeTower.toolchange = Feature()
       primeTower.toolchange.featureType = 'Toolchange'
       primeTower.toolchange.start = f.tell()
+    elif g392Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
+      primeTower.toolchange = Feature()
+      primeTower.toolchange.featureType = 'Toolchange'
+      primeTower.toolchange.start = f.tell() - len(cl)
     elif m620Match and (primeTower.toolchange == None or primeTower.toolchange.start == 0): 
       primeTower.toolchange = Feature()
       primeTower.toolchange.featureType = 'Toolchange'
@@ -294,6 +300,7 @@ def findToolchangeInsertionPoint(f: typing.TextIO):
   return insertionPoint
 
 def substituteNewColor(cl, newColorIndex: int):
+  cl = re.sub(G392, f"G392 S{newColorIndex}", cl)
   cl = re.sub(M620, f"M620 S{newColorIndex}A", cl)
   cl = re.sub(TOOLCHANGE_T, f"T{newColorIndex}", cl)
   cl = re.sub(M621, f"M621 S{newColorIndex}A", cl)
@@ -311,11 +318,14 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   cmdColorIndex = -1
   #print(f"writewithcolorfilter {cl}")
   #look for color specific matches to find the original color to check for replacement colors
+  g392Match = re.match(G392, cl)
   m620Match = re.match(M620, cl)
   toolchangeMatch = re.match(TOOLCHANGE_T, cl)
   m621Match = re.match(M621, cl)
 
-  if m620Match:
+  if g392Match:
+    cmdColorIndex = int(g392Match.groups()[0])
+  elif m620Match:
     cmdColorIndex = int(m620Match.groups()[0])
   elif toolchangeMatch:
     cmdColorIndex = int(toolchangeMatch.groups()[0])
@@ -327,7 +337,7 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   
   out.write(cl)
 
-def process(inputFile, outputFile, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
+def process(inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
   try:
     with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
       currentPrint: PrintState = PrintState()

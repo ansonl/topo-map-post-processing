@@ -24,6 +24,7 @@ POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 # Options keys
 IMPORT_GCODE_FILENAME = 'importGcodeFilename'
 IMPORT_OPTIONS_FILENAME = 'importOptionsFilename'
+IMPORT_TOOLCHANGE_BARE_FILENAME = 'importToolchangeBareFilename'
 EXPORT_GCODE_FILENAME = 'exportGcodeFilename'
 
 MODEL_TO_REAL_WORLD_DEFAULT_UNITS = 'modelToRealWorldDefaultUnits'
@@ -92,7 +93,7 @@ class App(tk.Tk):
     super().__init__()
 
     self.title(APP_NAME)
-    self.minsize(500, 250)
+    self.minsize(500, 275)
     self.resizable(False, False)
 
     # configure the grid
@@ -136,6 +137,11 @@ class App(tk.Tk):
       importOptionsButton.config(text=truncateMiddleLength(fn, 50))
       userOptions[IMPORT_OPTIONS_FILENAME] = fn
 
+    def selectToolchangeBareFile():
+      fn = select_file([('G-code file', '*.gcode')])
+      importToolchangeBareButton.config(text=truncateMiddleLength(fn, 50))
+      userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = fn
+
     def selectExportGcodeFile():
       fn = select_file([('G-code file', '*.gcode')])
       if fn == userOptions[IMPORT_GCODE_FILENAME]:
@@ -171,33 +177,45 @@ class App(tk.Tk):
     )
     importOptionsButton.grid(row=2, column=1, sticky=tk.EW, padx=10, pady=5)
 
+    toolchangeBareLabel = tk.Label(
+      master=self,
+      text='Toolchange G-code'
+    )
+    toolchangeBareLabel.grid(row=3, column=0, sticky=tk.W, padx=10)
+    importToolchangeBareButton = tk.Button(
+      master=self,
+      text='Select file',
+      command=selectToolchangeBareFile
+    )
+    importToolchangeBareButton.grid(row=3, column=1, sticky=tk.EW, padx=10, pady=5)
+
     exportLabel = tk.Label(
       master=self,
       text='Export G-code'
     )
-    exportLabel.grid(row=3, column=0, sticky=tk.W, padx=10)
+    exportLabel.grid(row=4, column=0, sticky=tk.W, padx=10)
     exportGcodeButton = tk.Button(
       master=self,
       text='Select file',
       command=selectExportGcodeFile
     )
-    exportGcodeButton.grid(row=3, column=1, sticky=tk.EW, padx=10, pady=5)
+    exportGcodeButton.grid(row=4, column=1, sticky=tk.EW, padx=10, pady=5)
 
     separator = ttk.Separator(self, orient=tk.HORIZONTAL)
-    separator.grid(row=4, column=0, sticky=tk.EW, columnspan=2, padx=15, pady=5)
+    separator.grid(row=5, column=0, sticky=tk.EW, columnspan=2, padx=15, pady=5)
 
     self.processStatusLabel = tk.Label(
       master=self,
       textvariable=self.status,
       wraplength=450
     )
-    self.processStatusLabel.grid(row=5, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusLabel.grid(row=6, column=0, columnspan=2, padx=10, sticky=tk.EW)
     self.processStatusProgressBar = ttk.Progressbar(
       self,
       orient=tk.HORIZONTAL,
       variable=self.progress
     )
-    self.processStatusProgressBar.grid(row=6, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusProgressBar.grid(row=7, column=0, columnspan=2, padx=10, sticky=tk.EW)
 
     def startPostProcess():
       self.progress.set(0)
@@ -208,6 +226,7 @@ class App(tk.Tk):
         userOptions = {
           IMPORT_GCODE_FILENAME : userOptions.get(IMPORT_GCODE_FILENAME),
           IMPORT_OPTIONS_FILENAME : userOptions.get(IMPORT_OPTIONS_FILENAME),
+          IMPORT_TOOLCHANGE_BARE_FILENAME : userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME),
           EXPORT_GCODE_FILENAME : userOptions.get(EXPORT_GCODE_FILENAME)
         }
         periodicColors: list[PeriodicColor] = []
@@ -276,7 +295,7 @@ class App(tk.Tk):
             )
             print("Added replacement color based on options")
           
-        process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
+        process(inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
 
       startPostProcessButton["state"] = "disabled"
 
@@ -295,7 +314,7 @@ class App(tk.Tk):
       textvariable=self.progressButtonString,
       command=startPostProcess
     )
-    startPostProcessButton.grid(row=7, column=0, sticky=tk.EW, columnspan=2, padx=10)
+    startPostProcessButton.grid(row=8, column=0, sticky=tk.EW, columnspan=2, padx=10)
 
     infoButton = tk.Button(
       master=self,
@@ -306,13 +325,13 @@ class App(tk.Tk):
           message='Add isolines and elevation color change features to your 3D Topo Maps when printed.\n\n www.AnsonLiu.com/maps'
         )
     )
-    infoButton.grid(row=8, column=0, sticky=tk.EW, columnspan=1, padx=10, pady=10)
+    infoButton.grid(row=9, column=0, sticky=tk.EW, columnspan=1, padx=10, pady=10)
 
     infoLabel = tk.Label(
       master=self,
       text=f"v{APP_VERSION}"
     )
-    infoLabel.grid(row=8, column=1, sticky=tk.E, padx=10)
+    infoLabel.grid(row=9, column=1, sticky=tk.E, padx=10)
 
     
 
