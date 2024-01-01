@@ -4,6 +4,8 @@ Add [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Con
 
 This app adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/).
 
+![map feature gcode post processing screenshot](/assets/screenshot.png)
+
 Only one isoline interval and colored elevation range is supported but the implementation can support more. If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling through my [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
 
 ## Current G-code flavors supported
