@@ -6,6 +6,12 @@ This app adds additional features to the model by post processing sliced [3D pri
 
 Only one isoline interval and colored elevation range is supported but the implementation can support more. If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling through my [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
 
+## Current G-code flavors supported
+
+- Marlin 2 (sliced from Bambu Studio) for Bambu printers
+
+If you would like support for your printer G-code flavor to be added, please open an issue and your printer can be used for testing.
+
 ## Feature Options
 
 The options file is formatted as a JSON dictionary with the following keys. Options values are provided for each [3D printable map model](https://ansonliu.com/maps/) on the [specifications page](https://ansonliu.com/maps/specifications/).
