@@ -242,10 +242,10 @@ class App(tk.Tk):
             ReplacementColorAtHeight(colorIndex=3, originalColorIndex=0, startHeight=8, endHeight=float('inf'))
           ]
         else:
-          if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
+          if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
             messagebox.showerror(
                 title='Post Process Requirements',
-                message='Need Print Gcode, Options, and Exported Gcode to be  selected.'
+                message='Need Print G-code, Options, Toolchange G-code, and Exported G-code to be  selected.'
             )
             return
           
