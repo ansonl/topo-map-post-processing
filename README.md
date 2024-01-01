@@ -15,7 +15,7 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | Physical Position → | 1 | 2 | 3 | 4 |
 | -------- | ------- | ------- | ------- | ------ |
 | 0-based index in options | 0 | 1 | 2 | 3 |
-| **Purpose** | Primary (base) | Secondary (hydro) | Isoline | High Elevation |
+| **Purpose** | Primary (base) | Secondary (hydro) | *Isoline* | *Elevation Color Change* |
 
 ### Required Options
 
@@ -68,3 +68,9 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
   "replacementOriginalColorIndex": 0
 }
 ```
+
+## Known Issues
+
+**Issue:** When this script is run on Windows, it can only correctly process G-code generated on a Windows computer. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers)
+
+**Solution:** Either convert a G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows.
