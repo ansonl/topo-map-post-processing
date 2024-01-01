@@ -110,6 +110,18 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 }
 ```
 
+## Toolchange G-code File
+
+You must supply a file containing a minimal toolchange G-code sequence for your printer.
+
+The location for next extruder index (the tool/filament/color being switched to) must be replaced with `XX` in this text file. All instances of `XX` are replaced with the next extruder index. *E.g. When switching to extruder 1, `TXX` will become `T1`*
+
+This toolchange is used when a toolchange is needed but the existing Prime Tower and toolchange G-code cannot be used.
+
+Premade minimal toolchange files are located in the `minimal_toolchanges` directory. Every 3D printer is different and you should manually verify that the provided G-code is compatible with your printer. 
+
+If you would like to contribute your toolchange G-Code, please make a pull request.
+
 ## Known Issues
 
 **Issue:** When this script is run on Windows, it can only correctly process G-code generated on a Windows computer. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers)

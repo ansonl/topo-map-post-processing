@@ -1,4 +1,4 @@
-import re, os, typing, queue
+import re, os, typing, queue, time, datetime
 
 # Gcode flavors
 MARLIN_2_BAMBUSLICER_OLD = 'marlin2bambuslicer_old'
@@ -407,6 +407,7 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   out.write(cl)
 
 def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
+  startTime = time.monotonic()
   try:
     with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
       currentPrint: PrintState = PrintState()
@@ -456,7 +457,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           if f.tell() == currentPrint.primeTower.start:
             print(f"start skip {f.tell()}")
             skipWrite = True
-            out.write("; Original Prime Tower and Toolchange skipped\n")
+            out.write("; MFPP Original Prime Tower and Toolchange skipped\n")
           #if currentPrint.height == 6.4 and f.tell() < currentPrint.primeTower.end and f.tell() > currentPrint.primeTower.start:
           #  print(f.tell())
           if f.tell() == currentPrint.primeTower.end:
@@ -469,7 +470,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           if f.tell() == currentPrint.primeTower.toolchange.start:
             print(f"start skip {f.tell()}")
             skipWrite = True
-            out.write("; Original Toolchange skipped\n")
+            out.write("; MFPP Original Toolchange skipped\n")
           if f.tell() == currentPrint.primeTower.toolchange.end:
             if skipWrite:
               print(f"end skip at {f.tell()} {currentPrint.primeTower.toolchange.end}")
@@ -485,7 +486,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           if f.tell() == currentPrint.toolchangeBareInsertionPoint.start:
             #insert toolchare bare
             printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(currentPrint.toolchangeNewColorIndex, loadedColors)
-            out.write(f"; Toolchange (minimal) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
+            out.write(f"; MFPP Toolchange (minimal) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
             # normally we would replace the color with replacement color in writeWithColorFilter() but we are replacing multiple lines so this will write directly
             with open(toolchangeBareFile, mode='r') as tc_bare:
               tc_bare_code = tc_bare.read().replace('XX', str(printingToolchangeNewColorIndex))
@@ -497,7 +498,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           if f.tell() == currentPrint.toolchangeFullInsertionPoint.start:
             #insert toolchange full
             printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(currentPrint.toolchangeNewColorIndex, loadedColors)
-            out.write(f"; Prime Tower and Toolchange (full) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
+            out.write(f"; MFPP Prime Tower and Toolchange (full) inserted to {currentPrint.toolchangeNewColorIndex} --replacement--> {printingToolchangeNewColorIndex}\n")
 
             # Seek to original prime tower and toolchange position. Write prime tower to output. Seek back to while loop reading position.
             cp = f.tell()
@@ -516,7 +517,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex if len(periodicColors) > 0 else False
 
       item = StatusQueueItem()
-      item.status = f"Completed at {currentPrint.height}"
+      item.status = f"Completed at {currentPrint.height} height in {str(datetime.timedelta(seconds=time.monotonic()-startTime))}s"
       item.progress = 99.99
       statusQueue.put(item=item)
   except PermissionError as e:
