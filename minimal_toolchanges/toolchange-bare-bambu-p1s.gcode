@@ -1,34 +1,18 @@
-; stop printing object, unique label id: X
-M625
-; LAYER_HEIGHT: X
-; FEATURE: Prime tower
-; LINE_WIDTH: 0.500000
-;--------------------
-; CP TOOLCHANGE START
-; toolchange #X
-; material : PLA -> PLA
-;--------------------
-M220 S100
-; WIPE_TOWER_START
-; filament end gcode 
+; MFPP MINIMAL TOOLCHANGE START
+G1 E-.1 F1800
 M106 P3 S0
 
-; WIPE_START
-
-; WIPE_END
-G1 E-.1 F1800
 M620 SXXA
 M204 S9000
 
 G17
-;lift by 0.4mm
-;G2 Z7.2 I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
-G2 I0.86 J0.86 P1 F10000 
+;G2 Z0.6 I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
+G2 I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
 G91
 G1 Z0.4
 G90
 
-;G1 Z9.8 F1200
+;G1 Z3.2 F1200
 G91
 G1 Z2.6
 G90
@@ -130,42 +114,27 @@ G1 X100 F5000
 G1 X165 F15000; wipe and shake
 G1 Y256 ; move Y to aside, prevent collision
 M400
-;G1 Z9.8 F3000
+;G1 Z3.2 F3000
 
-M204 S10000
+M204 S500
 
 
 M621 SXXA
+
 M106 S178.5
 M106 P2 S178
-
-; filament start gcode
 M106 P3 S200
-
-; CP TOOLCHANGE WIPE
-
-; WIPE_TOWER_END
 G92 E0
-; CP TOOLCHANGE END
-;------------------
 
-
-
-; WIPE_START
-; WIPE_END
 G1 E-.04 F1800
-; start printing object, unique label id: X
-M624 AQAAAAAAAAA=
-;G1 X183.982 Y230.46 Z7.2 F30000
-;G1 X125.306 Y122.424 Z7.2
+
 G91
 G1 Z-2.6 F30000
 G90
 
-
-;G1 Z6.8 ; restore Z
 G91
 G1 Z-0.4
 G90
+
 G1 E.8 F1800
-; FEATURE: Inner wall
+; MFPP MINIMAL TOOLCHANGE END

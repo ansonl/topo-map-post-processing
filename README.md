@@ -10,7 +10,7 @@ Only one isoline interval and colored elevation range is exposed at the moment b
 
 ## Current G-code flavors supported
 
-- Marlin 2 (Bambu Studio)
+- Marlin 2 (PrusaSlicer/Bambu Studio)
 
 If you would like support for your printer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
 
