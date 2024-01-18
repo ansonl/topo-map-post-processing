@@ -35,7 +35,8 @@ Add markers in your slicer software G-code for the end of new layer change and s
 ##### After layer change G-code
 
 ```gcode
-Original layer change G-code stays here
+; Existing layer change G-code stays HERE
+
 ; MFPP LAYER CHANGE END
 ```
 
@@ -43,7 +44,9 @@ Original layer change G-code stays here
 
 ```gcode
 ; MFPP TOOLCHANGE START
-Original toolchange G-code stays here
+
+; Existing toolchange G-code stays HERE
+
 ; MFPP TOOLCHANGE END
 ```
 
