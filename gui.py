@@ -17,7 +17,7 @@ TEST_MODE = False
 
 # UI Constants
 APP_NAME = 'Map Features G-code Post Processing'
-APP_VERSION = '0.3'
+APP_VERSION = '0.4'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 

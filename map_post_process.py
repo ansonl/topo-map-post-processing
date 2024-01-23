@@ -272,6 +272,9 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
 
       if changeLayerMatchBambu or changeLayerMatchPrusa:
         print('got new layer at ',f.tell(),'before prime tower')
+        if primeTower.toolchange and primeTower.toolchange.start and primeTower.toolchange.end:
+          print(f'found toolchange in this layer at {primeTower.toolchange.start}-{primeTower.toolchange.end} so will return primeTower obj with toolchange filled out')
+          return primeTower
         return None
       
       #if cl.startswith("; stop printing object"):
@@ -288,6 +291,7 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
         primeTower.toolchange = Feature()
         primeTower.toolchange.featureType = 'Toolchange'
         primeTower.toolchange.start = f.tell() - len(cl)
+        print(f"found toolchange start at {primeTower.toolchange.start}")
       # Keep looking if primetower or toolchange start have not been found
       elif primeTower.start == 0 and (primeTower.toolchange == None or primeTower.toolchange.start == 0):
         continue
@@ -309,6 +313,7 @@ def findLayerFeaturePrimeTower(f: typing.TextIO, gf: str):
       # Look for UNIVERSAL_TOOLCHANGE_END if we already found the toolchange start
       elif univeralToolchangeEndMatch and primeTower.toolchange and primeTower.toolchange.start:
         primeTower.toolchange.end = f.tell()
+        print(f"found toolchange end at {primeTower.toolchange.end}")
       # Look for prime tower end
       elif (startObjMatchBambu or startObjMatchPrusa) and primeTower.start:
           primeTower.end = f.tell() - len(cl)
