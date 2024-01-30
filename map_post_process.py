@@ -1,4 +1,4 @@
-import re, os, typing, queue, time, datetime
+import re, os, typing, queue, time, datetime, math
 
 # Gcode flavors
 MARLIN_2_BAMBUSLICER_OLD = 'marlin2bambuslicer_old'
@@ -19,7 +19,7 @@ G392 = '^G392 S(\d*)' #G392 only for A1
 M620 = '^M620 S(\d*)A'
 # Toolchange core movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
 WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
-TOOLCHANGE_T = '^T(?!255$|1000$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
+TOOLCHANGE_T = '^T(?!255$|1000|1100$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
 # Prime tower printing actually starts after M621
 M621 = '^M621 S(\d*)A'
 #; CP TOOLCHANGE WIPE
@@ -133,12 +133,18 @@ def shouldLayerBePeriodicLine(printState: PrintState, periodicLine: PeriodicColo
     # current layer top is inside an isoline
     if (printState.height - periodicLine.startHeight) % periodicLine.period <= periodicLine.height:
       #start isoline
+      #print(f"({printState.height} - {periodicLine.startHeight}) % {periodicLine.period} so start isoline")
       return True
     #current layer envelopes an isoline
-    #is thicker than 1 isoline AND top is above isoline end and bottom is below isoline start (or above isoline end)
-    elif printState.layerHeight > periodicLine.height and ((printState.height - periodicLine.startHeight) - printState.layerHeight) % periodicLine.period > periodicLine.height:
+    #is thicker than 1 isoline AND bottom is in isoline OR top is above next isoline (top of next isoline)
+    elif printState.layerHeight > periodicLine.height:
+      if ((printState.height - periodicLine.startHeight) - printState.layerHeight) % periodicLine.period < periodicLine.height:
+        #print(f"{printState.layerHeight} > {periodicLine.height} and (({printState.height} - {periodicLine.startHeight}) - {printState.layerHeight}) % {periodicLine.period} < {periodicLine.height} so start isoline")
+        #start isoline
+        return True
+      elif printState.height - periodicLine.startHeight > math.ceil(((printState.height - periodicLine.startHeight) - printState.layerHeight) / periodicLine.period) * periodicLine.period + periodicLine.height:
       #start isoline
-      return True
+        return True
   return False
 
 def updateReplacementColors(printState: PrintState, rcs: list[ReplacementColorAtHeight]):
