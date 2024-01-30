@@ -1,4 +1,4 @@
-; MFPP MINIMAL TOOLCHANGE START
+; MFPP MINIMAL P1 TOOLCHANGE START
 G1 E-.1 F1800
 M106 P3 S0
 
@@ -6,16 +6,15 @@ M620 SXXA
 M204 S9000
 
 G17
-;G2 Z0.6 I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
+;G2 ZINITIALLIFT I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
 G2 I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
 G91
 G1 Z0.4
 G90
 M83
 
-;G1 Z3.2 F1200
 G91
-G1 Z2.6
+G1 Z2.6 F1200
 G90
 M83
 
@@ -116,7 +115,6 @@ G1 X100 F5000
 G1 X165 F15000; wipe and shake
 G1 Y256 ; move Y to aside, prevent collision
 M400
-;G1 Z3.2 F3000
 
 M204 S500
 
@@ -140,5 +138,6 @@ G1 Z-0.4
 G90
 M83
 
-G1 E.8 F1800
+G1 E2 F1800
+M204 S5000
 ; MFPP MINIMAL TOOLCHANGE END
