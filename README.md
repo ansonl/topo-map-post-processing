@@ -69,7 +69,7 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | `modelToRealWorldDefaultUnits` (millimeters:meters)  | 1000 | 1 | Use this if you specify real world units in meters. |
 | `modelToRealWorldDefaultUnits` (millimeters:feet)  | 304.8 | 1 | Use this if you specify real world units in feet. |
 | `modelOneToNVerticalScale` | *(model:real-world)* | 1 | Model to Real World scale *(E.g. 1:500000 = 0.1mm:50m)* |
-| `modelSeaLevelBaseThickness` | | 1 | The model thickness at sea level (0 m) |
+| `modelSeaLevelBaseThickness` | | 1 | The model height at sea level (0 m) in model units. This is used as zero elevation for the isoline and elevation color change. |
 
 ### Isoline Options
 
