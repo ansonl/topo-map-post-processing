@@ -65,6 +65,7 @@ class PrintState:
   def __init__(self):
     self.height: float = 0 
     self.layerHeight: float = 0
+    self.previousLayerHeight: float = 0
     self.originalColor: int = 0 # last color changed to in original print
     self.printingColor: int = 0 # current modified color
     self.printingPeriodicColor: bool = False
@@ -138,6 +139,10 @@ def shouldLayerBePeriodicLine(printState: PrintState, periodicLine: PeriodicColo
     #current layer envelopes an isoline
     #is thicker than 1 isoline AND bottom is in isoline OR top is above next isoline (top of next isoline)
     elif printState.layerHeight > periodicLine.height:
+      #If previous layer was periodic line and previous layer height was greater than periodic line height then this layer should not a periodic color even if periodic layer range is sandwiched between current layer and previous layer boundary. Previous layer being periodic color and greather than periodic line height already exceeded total periodic line height so we don't need a double thick periodic line.
+      if printState.printingPeriodicColor == True and printState.previousLayerHeight > periodicLine.height:
+        return False
+
       if ((printState.height - periodicLine.startHeight) - printState.layerHeight) % periodicLine.period < periodicLine.height:
         #print(f"{printState.layerHeight} > {periodicLine.height} and (({printState.height} - {periodicLine.startHeight}) - {printState.layerHeight}) % {periodicLine.period} < {periodicLine.height} so start isoline")
         #start isoline
@@ -162,6 +167,7 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
   if changeLayerMatchBambu or changeLayerMatchPrusa:
     # Create new print state for the new found layer and carry over some state that should be preserved between layers.
     printState = PrintState()
+    printState.previousLayerHeight = lastPrintState.layerHeight
     printState.originalColor = lastPrintState.originalColor
     printState.printingColor = lastPrintState.printingColor
     printState.printingPeriodicColor = lastPrintState.printingPeriodicColor
@@ -218,7 +224,7 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
         printState.toolchangeNewColorIndex = pcs[0].colorIndex
         # check for existing toolchange on this layer
         #print(printState.primeTower)     
-        if printState.primeTower and printState.primeTower.start:
+        if printState.primeTower and printState.primeTower.start and printState.primeTower.end:
           # if toolchange exist, switch toolhead, do prime block. Do toolchange after STOPOBJ and M991. Relocate prime block. Skip found toolchange/primeblock on this layer.
           if printState.primeTower.toolchange:
             printState.toolchangeFullInsertionPoint = insertionPoint
