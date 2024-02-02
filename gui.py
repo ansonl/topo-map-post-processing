@@ -13,7 +13,7 @@ import queue
 from map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = False
+TEST_MODE = True
 
 # UI Constants
 APP_NAME = 'Map Features G-code Post Processing'
@@ -233,9 +233,9 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          userOptions[IMPORT_GCODE_FILENAME] = 'dicetest.gcode'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-minimal-prusa-xl.gcode'
-          userOptions[EXPORT_GCODE_FILENAME] = 'dicetest-export.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dice_x1c.gcode'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
+          userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)
           ]
