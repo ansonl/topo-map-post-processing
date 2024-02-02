@@ -233,7 +233,7 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dice_x1c.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dice_x1c_half.gcode'
           userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
           periodicColors = [

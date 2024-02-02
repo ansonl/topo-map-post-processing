@@ -60,6 +60,8 @@ LAYER_HEIGHT_PRUSASLICER = '^;HEIGHT:(\d*\.?\d*)' # Current layer height
 
 M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 
+LINE_ENDING = "\r\n"
+
 class StatusQueueItem:
   def __init__(self):
     self.status = None
@@ -211,8 +213,12 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
     cp = f.tell()  
     findLayerFeatures(f=f, gf=gf, printState=printState, pcs=pcs)
 
+    #print features
+    print(f"{len(printState.features)} features found")
     for feat in printState.features:
-      print(f"{feat.featureType} {feat.start}")
+      print(f"{feat.featureType} start: {feat.start} end: {feat.end} isPeriodicColor:{feat.isPeriodicColor} printingColor:{feat.printingColor}")
+      if feat.toolchange:
+        print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.start} printingColor:{feat.toolchange.printingColor}")
 
     f.seek(cp, os.SEEK_SET)
 
@@ -227,10 +233,12 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
     # Check if first printing feature (that is not prime tower) differs in target color than the inherited printing color from last layer OR first feature and last layer are both NOT periodic color in which case prime tower is probably switching to the correct color for us at start
     # Use first feature.start as first insertion point (+relocated prime tower) for toolchange if color change needed.
     # If first feature is matching color already, determine insertion point later
+    '''
     printState.toolchangeInsertionPoint = 0
     if firstNonePrimeTowerFeatureIndex > -1 and ((printState.printingPeriodicColor ^ printState.features[firstNonePrimeTowerFeatureIndex].isPeriodicColor) or (printState.printingPeriodicColor == False and printState.features[firstNonePrimeTowerFeatureIndex].isPeriodicColor == False)):
       printState.toolchangeInsertionPoint = printState.features[firstNonePrimeTowerFeatureIndex].start
       print(f"Use index {firstNonePrimeTowerFeatureIndex} feature at {printState.features[firstNonePrimeTowerFeatureIndex].start} as first toolchange insertion point")
+    '''
     
     # unused because we insert per feature
     #insertionPoint = findToolchangeInsertionPoint(f, gf)
@@ -328,8 +336,8 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
 
       # end if we find next layer marker
       if changeLayerMatchBambu or changeLayerMatchPrusa:
-        printState.layerEnd = f.tell() - len(cl)
-        print('got new layer at ',f.tell())
+        printState.layerEnd = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        #print('got new layer at ',f.tell())
         if curFeature and curFeature.featureType != POTENTIAL_PRIME_TOWER:
           printState.features.append(curFeature)
           curFeature = None
@@ -345,21 +353,21 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           printState.features.append(curFeature)
         curFeature = Feature()
         curFeature.featureType = POTENTIAL_PRIME_TOWER
-        curFeature.start = f.tell() - len(cl)
-        print(f"found prime tower feature start (stop obj) at {f.tell() - len(cl)}")
+        curFeature.start = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        #print(f"found prime tower feature start (stop obj) at {f.tell() - len(cl)}")
         continue
 
       # Look for FEATURE to find feature type
       elif featureMatchBambu or featureMatchPrusa:
-        print(f"found FEATURE match at {f.tell() - len(cl)}")
+        #print(f"found FEATURE match at {f.tell() - len(cl) - (len(LINE_ENDING)-1)}")
 
         if curFeature and curFeature.featureType != POTENTIAL_PRIME_TOWER: # If we were looking at a feature already, end it and save it. Don't end potential prime tower
           if curFeature.featureType == PRIME_TOWER:
             if (featureMatchBambu and featureMatchBambu.groups()[0] == PRIME_TOWER) or (featureMatchPrusa and featureMatchPrusa.groups()[0] == PRIME_TOWER):
-              print(f"found next prime tower before current prime tower end")
+              #print(f"found next prime tower before current prime tower end")
               continue
             else:
-              print(f"found new feature before end of prime tower at {f.tell()}")
+              #print(f"found new feature before end of prime tower at {f.tell()}")
               break
           printState.features.append(curFeature)
         
@@ -367,7 +375,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
 
         if curFeature == None:
           curFeature = Feature()
-          curFeature.start = f.tell() - len(cl)
+          curFeature.start = f.tell() - len(cl) - (len(LINE_ENDING)-1)
         if featureMatchBambu:
           curFeature.featureType = featureMatchBambu.groups()[0]
         elif featureMatchPrusa:
@@ -378,7 +386,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           curFeature.isPeriodicColor = True
           curFeature.printingColor = pcs[0].colorIndex
 
-        print(f"feature is of type {curFeature.featureType}")
+        #print(f"feature is of type {curFeature.featureType}")
         continue
 
       # Keep looking for feature if we didn't find one yet
@@ -389,35 +397,35 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       elif univeralToolchangeStartMatch: 
         curFeature.toolchange = Feature()
         curFeature.toolchange.featureType = TOOLCHANGE
-        curFeature.toolchange.start = f.tell() - len(cl)
-        print(f"found toolchange start at {curFeature.toolchange.start}")
+        curFeature.toolchange.start = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        #print(f"found toolchange start at {curFeature.toolchange.start}")
         continue
 
       # Look for TXX if we already found the toolchange start
       elif toolchangeMatch:
         curFeature.toolchange.printingColor = int(toolchangeMatch.groups()[0])
-        print(f"toolchange to extruder {curFeature.toolchange.printingColor} at {f.tell()}")
+        #print(f"toolchange to extruder {curFeature.toolchange.printingColor} at {f.tell()}")
         continue
 
       # Look for UNIVERSAL_TOOLCHANGE_END if we already found the toolchange start
       elif univeralToolchangeEndMatch:
         if curFeature.toolchange == None:
-          print(f"toolchange end found before toolchange start at {f.tell()}")
+          #print(f"toolchange end found before toolchange start at {f.tell()}")
           break
         curFeature.toolchange.end = f.tell()
-        print(f"found toolchange end at {curFeature.toolchange.end}")
+        #print(f"found toolchange end at {curFeature.toolchange.end}")
         continue
 
       # Look for prime tower end
       elif startObjMatchBambu or startObjMatchPrusa:
         if curFeature.featureType != PRIME_TOWER:
-          print(f"found prime tower end even though current feature is not prime tower and is type {curFeature.featureType}")
+          #print(f"found prime tower end even though current feature is not prime tower and is type {curFeature.featureType}")
           curFeature = None
           continue
-        curFeature.end = f.tell() - len(cl)
+        curFeature.end = f.tell() - len(cl) - (len(LINE_ENDING)-1)
         printState.features.append(curFeature)
         printState.primeTowerFeatureIndex = len(printState.features)-1
-        print(f"found prime tower end at {curFeature.end}")
+        #print(f"found prime tower end at {curFeature.end}")
         curFeature = None
 
     if curFeature:
@@ -446,33 +454,33 @@ def findToolchangeInsertionPoint(f: typing.TextIO, gf: str):
 '''
 
 # Get the actual processed printing color before next printing feature
-def determineBeforeNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: int, lastPrintingColor: int) -> int:
-  curFeature = features[curFeatureIdx]
-  if curFeature.printingColor > -1: # Only set if periodic feature
-    lastPrintingColor = curFeature.printingColor
-  if curFeature.toolchange: # Check toolchange that may be at end of current feature
-    lastPrintingColor = curFeature.toolchange.printingColor
+def determineBeforeNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: int, lastPrintingColor: int, passedPrimeTower: bool) -> tuple[int, bool]:
+  if curFeatureIdx > -1:
+    curFeature = features[curFeatureIdx]
+    if curFeature.printingColor > -1: # Only set if periodic feature
+      lastPrintingColor = curFeature.printingColor
+    if curFeature.toolchange: # Check toolchange that may be at end of current feature
+      lastPrintingColor = curFeature.toolchange.printingColor
   if curFeatureIdx+1 < len(features): # If we have additional features after this
     nextFeature = features[curFeatureIdx+1]
     if nextFeature.featureType == PRIME_TOWER: # If next feature is prime tower, keep looking
-      return determineNextFeaturePrintingColor(features, curFeatureIdx+1, lastPrintingColor)
-  return lastPrintingColor
+      return determineNextFeaturePrintingColor(features, curFeatureIdx+1, lastPrintingColor, True)
+  return lastPrintingColor, passedPrimeTower
 
 # Get the target printing color of next printing feature
-def determineNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: int, lastPrintingColor: int) -> int:
-  curFeature = features[curFeatureIdx]
-  if curFeature.printingColor > -1: # Only set if periodic feature
-    lastPrintingColor = curFeature.printingColor
-  if curFeature.toolchange: # Check toolchange that may be at end of current feature
-    lastPrintingColor = curFeature.toolchange.printingColor
+def determineNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: int, lastPrintingColor: int, passedPrimeTower: bool) -> tuple[int, bool]:
+  if curFeatureIdx > -1:
+    curFeature = features[curFeatureIdx]
+    if curFeature.toolchange: # Check toolchange that may be at end of current feature
+      lastPrintingColor = curFeature.toolchange.printingColor
   if curFeatureIdx+1 < len(features): # If we have additional features after this
     nextFeature = features[curFeatureIdx+1]
     if nextFeature.featureType == PRIME_TOWER: # If next feature is prime tower, keep looking
-      return determineNextFeaturePrintingColor(features, curFeatureIdx+1, lastPrintingColor)
+      return determineNextFeaturePrintingColor(features, curFeatureIdx+1, lastPrintingColor, True)
     else:
       if nextFeature.printingColor > -1: # Check next feature printing color (only set if periodic feature)
         lastPrintingColor = nextFeature.printingColor
-  return lastPrintingColor
+  return lastPrintingColor, passedPrimeTower
 
 def substituteNewColor(cl, newColorIndex: int):
   cl = re.sub(M620, f"M620 S{newColorIndex}A", cl)
@@ -524,6 +532,19 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
 
       curFeatureIdx = -1
 
+      # Check if next layer needs a toolchange and the next toolchange color
+      def determineIfNextFeatureNeedsToolchange(ps: PrintState, cfi: int) -> tuple[bool, int, bool] :
+        # the active printing color before starting the next feature
+        beforeNextFeaturePrintingColor, passedPrimeTower = determineBeforeNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.printingColor, passedPrimeTower=False)
+        # the correct target printing color for the next feature (pass in original color as initial color to get correct original color index if needed)
+        nextFeaturePrintingColor, _ = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedPrimeTower=False)
+        printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
+
+        #if curFeatureIdx == 3:
+        #  0==0
+
+        return beforeNextFeaturePrintingColor != nextFeaturePrintingColor, printingToolchangeNewColorIndex, passedPrimeTower
+
       # Current line buffer
       cl = True
       while cl:
@@ -539,6 +560,19 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           #  print(f"primetower.start {currentPrint.primeTower.start}")
           #  print(f"primetower.end {currentPrint.primeTower.end}")
           curFeatureIdx = -1
+
+          # Check if toolchange needed for "next" feature which is index 0
+          nextFeatureNeedsToolchange, printingToolchangeNewColorIndex, passedPrimeTower = determineIfNextFeatureNeedsToolchange(currentPrint, curFeatureIdx)
+          if nextFeatureNeedsToolchange: #if printing color before and printing color in next feature do not match, insert a toolchange at start of next feature (or at layer end if this is the last feature)
+            if curFeatureIdx+1 < len(currentPrint.features):
+              currentPrint.toolchangeInsertionPoint = currentPrint.features[curFeatureIdx+1].start
+            else:
+              currentPrint.toolchangeInsertionPoint = currentPrint.layerEnd
+          else:
+              if passedPrimeTower: 
+                currentPrint.primeTowerFeatureIndex = -1
+
+
           item = StatusQueueItem()
           item.status = f"Current Height {currentPrint.height}"
           item.progress = cp/lp * 100
@@ -560,7 +594,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         # Check if we are at toolchange insertion point. This point can be set while parsing the layer (if first printing layer needs TC). This point can also be set while reading a feature in the loop.
         if f.tell() == currentPrint.toolchangeInsertionPoint:
           # find the correct color for the toolchange
-          nextFeatureColor = determineNextFeaturePrintingColor(currentPrint.features, curFeatureIdx, currentPrint.originalColor)
+          nextFeatureColor, _ = determineNextFeaturePrintingColor(currentPrint.features, curFeatureIdx, currentPrint.originalColor, False)
           printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeatureColor, loadedColors)
 
           # Check if full toolchange is available
@@ -617,21 +651,21 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
               curFeature.skipType = PRIME_TOWER
               skipWrite = True
               print(f"start Prime Tower skip {f.tell()}")
+              continue
 
             # Check if next layer needs a toolchange
-            # the active printing color before starting the next feature
-            beforeNextFeaturePrintingColor = determineBeforeNextFeaturePrintingColor(currentPrint.features, curFeatureIdx, currentPrint.printingColor)
-            # the correct target printing color for the next feature (pass in original color as initial color to get correct original color index if needed)
-            nextFeaturePrintingColor = determineNextFeaturePrintingColor(currentPrint.features, curFeatureIdx, currentPrint.originalColor)
-            printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
-            if beforeNextFeaturePrintingColor != nextFeaturePrintingColor: #if printing color before and printing color in next feature do not match, insert a toolchange at start of next feature (or at layer end if this is the last feature)
+            nextFeatureNeedsToolchange, printingToolchangeNewColorIndex, passedPrimeTower = determineIfNextFeatureNeedsToolchange(currentPrint, curFeatureIdx)
+            if nextFeatureNeedsToolchange: #if printing color before and printing color in next feature do not match, insert a toolchange at start of next feature (or at layer end if this is the last feature)
               if curFeatureIdx+1 < len(currentPrint.features):
                 currentPrint.toolchangeInsertionPoint = currentPrint.features[curFeatureIdx+1].start
               else:
                 currentPrint.toolchangeInsertionPoint = currentPrint.layerEnd
+            else: # if printing color before and in next feature match and prime tower played a part in the color, clear the prime tower index and write prime tower in original position
+              if passedPrimeTower: 
+                currentPrint.primeTowerFeatureIndex = -1
             
             # Check if feature toolchange can be omitted. If feature toolchange is redundant.
-            if curFeature.toolchange and ((currentPrint.printingColor == curFeature.toolchange.printingColor) or (curFeature.toolchange.printingColor != nextFeaturePrintingColor)):
+            if curFeature.toolchange and ((currentPrint.printingColor == curFeature.toolchange.printingColor) or (curFeature.toolchange.printingColor == printingToolchangeNewColorIndex)):
               curFeature.skipType = TOOLCHANGE
           
           if curFeature:
