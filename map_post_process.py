@@ -593,6 +593,10 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
 
         # Check if we are at toolchange insertion point. This point can be set while parsing the layer (if first printing layer needs TC). This point can also be set while reading a feature in the loop.
         if f.tell() == currentPrint.toolchangeInsertionPoint:
+          # Write out the current line read that is before the toolchange insert. We will be inserting toolchange code after this line.
+          writeWithColorFilter(out, cl, loadedColors)
+          skipWrite = True
+
           # find the correct color for the toolchange
           nextFeatureColor, _ = determineNextFeaturePrintingColor(currentPrint.features, curFeatureIdx, currentPrint.originalColor, False)
           printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeatureColor, loadedColors)
@@ -635,7 +639,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             curFeatureIdx += 1 #next loop will check for next feature start
             
             # End skip (when skipping prime tower that is the previous feature) because we ended the previous prime tower feature by detecting the next feature.
-            if skipWrite:
+            if skipWrite and f.tell() != currentPrint.toolchangeInsertionPoint:
               print(f"End previous feature skip at {f.tell()}")
               skipWrite = False
 
@@ -682,9 +686,13 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
               skipWrite = False
               curFeature.skipType = None
 
-        if skipWrite == False:
+        if skipWrite == False: 
           #out.write(cl)
           writeWithColorFilter(out, cl, loadedColors)
+
+        # If we are at toolchange insertion point, we wrote the current line read earlier before inserting the toolchange. So we set skipWrite to not write it again. We can turn off skipWrite now so that next lines are written again.
+        if skipWrite and f.tell() == currentPrint.toolchangeInsertionPoint:
+          skipWrite == False
 
       item = StatusQueueItem()
       item.status = f"Completed at {currentPrint.height} height in {str(datetime.timedelta(seconds=time.monotonic()-startTime))}s"
