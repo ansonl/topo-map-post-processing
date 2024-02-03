@@ -1,0 +1,15 @@
+{
+  "modelToRealWorldDefaultUnits": 1000,
+  "modelOneToNVerticalScale": 200000,
+  "modelSeaLevelBaseThickness": 4.5,
+  "realWorldIsolineElevationInterval": 500,
+  "realWorldIsolineElevationStart": 500,
+  "realWorldIsolineElevationEnd": 30000,
+  "modelIsolineHeight": 0.05,
+  "isolineColorIndex": 2,
+  "realWorldElevationReplacementColorStart": 2000,
+  "realWorldElevationReplacementColorEnd": 30000,
+  "replacementColorIndex": 3,
+  "replacementOriginalColorIndex": 0,
+  "isolineFeatures": ["Outer wall", "Inner wall", "Internal solid infill"]
+}
