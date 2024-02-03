@@ -84,7 +84,7 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | `realWorldElevationReplacementColorEnd` | | 1 | Elevation based replacement color end elevation in real world units. |
 | `replacementColorIndex` | | 1 | Elevation based replacement color filament/color loaded position. Recommended index is 3 (fourth slot). |
 | `replacementOriginalColorIndex` | | 1 | Elevation based replacement color **replaced** filament/color loaded position. Recommended index is 0 (first slot). |
-| `enabledFeatures` | [string] | ≥0 | List of printing object feature types to color at isoline elevations.  |
+| `isolineFeatures` | [string] | ≥0 | List of printing object feature types to color at isoline elevations.  |
 
 ### Elevation Change Options
 

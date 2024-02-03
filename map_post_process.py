@@ -459,8 +459,9 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         nextFeaturePrintingColor, _ = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedPrimeTowerCount=0)
         printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
 
-        if ps.height == 14.4:
-          0==0
+        #debug breakpoints
+        #if ps.height == 14.4:
+        #  0==0
         #if curFeatureIdx == 3:
         #  0==0
 

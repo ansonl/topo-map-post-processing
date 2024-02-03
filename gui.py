@@ -15,7 +15,7 @@ import enum
 from map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = True
+TEST_MODE = False
 
 # UI Constants
 APP_NAME = 'Map Features G-code Post Processing'
