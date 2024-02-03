@@ -124,6 +124,7 @@ class Feature:
     self.isPeriodicColor: bool = False
     self.printingColor: int = -1
     self.skipType: str = None
+    self.used: bool = False
     
 class PrintColor:
   def __init__(self, index=-1, replacementColorIndex=-1, humanColor=None):
@@ -565,6 +566,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
               writeWithColorFilter(out, cl, loadedColors)
             f.seek(cp, os.SEEK_SET)
           
+            currentPrint.features[currentPrint.primeTowerFeatureIndex].used = True
             currentPrint.primeTowerFeatureIndex = -1 # clear prime tower feature index now that we used it
           else:
             #add minimal toolchange
@@ -606,14 +608,18 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
               print(f"On last feature and prime tower not used. Set insert at layer end {currentPrint.primeTowerFeatureIndex}")
               currentPrint.toolchangeInsertionPoint = currentPrint.layerEnd
 
-            # If current feature is the prime tower. Do not write prime tower. Skip past this prime tower feature. We may find use for prime tower later.
-            if curFeature.featureType == PRIME_TOWER and currentPrint.primeTowerFeatureIndex > -1:
-              print(f"Current feature {curFeatureIdx} is prime tower. Skipping prime tower.")
-              out.write("; MFPP Original Prime Tower skipped\n")
-              curFeature.skipType = PRIME_TOWER
-              skipWrite = True
-              print(f"start Prime Tower skip {f.tell()}")
-              continue
+            # If current feature is the prime tower. Do not write prime tower. Skip past this prime tower feature. We may find use for prime tower later. If prime tower does not have toolchange, do not skip it.
+            if curFeature.featureType == PRIME_TOWER:
+              if (currentPrint.primeTowerFeatureIndex > -1 or curFeature.used) and curFeature.toolchange:
+                print(f"Current feature {curFeatureIdx} is prime tower and it has toolchange. Skipping prime tower.")
+                out.write("; MFPP Original Prime Tower skipped\n")
+                curFeature.skipType = PRIME_TOWER
+                skipWrite = True
+                print(f"start Prime Tower skip {f.tell()}")
+                continue
+              else: #If prime tower has no toolchange, do not skip it. Leave in place. 
+                currentPrint.primeTowerFeatureIndex = -1
+                curFeature.used = True
 
             # Check if next layer needs a toolchange
             nextFeatureNeedsToolchange, printingToolchangeNewColorIndex, passedPrimeTowerCount = determineIfNextFeatureNeedsToolchange(currentPrint, curFeatureIdx)
