@@ -10,6 +10,8 @@ import time
 import threading
 import queue
 
+import enum
+
 from map_post_process import *
 
 # RUNTIME Flag
@@ -17,7 +19,7 @@ TEST_MODE = True
 
 # UI Constants
 APP_NAME = 'Map Features G-code Post Processing'
-APP_VERSION = '0.4.2'
+APP_VERSION = '1.0.0'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -36,6 +38,7 @@ REAL_WORLD_ISOLINE_ELEVATION_START = 'realWorldIsolineElevationStart'
 REAL_WORLD_ISOLINE_ELEVATION_END = 'realWorldIsolineElevationEnd'
 MODEL_ISOLINE_HEIGHT = 'modelIsolineHeight' #in model units
 ISOLINE_COLOR_INDEX = 'isolineColorIndex'
+ISOLINE_ENABLED_FEATURES = 'isolineFeatures'
 
 REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START = 'realWorldElevationReplacementColorStart'
 REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END = 'realWorldElevationReplacementColorEnd'
@@ -50,7 +53,8 @@ periodicColorRequiredOptions = [
   REAL_WORLD_ISOLINE_ELEVATION_START,
   REAL_WORLD_ISOLINE_ELEVATION_END,
   MODEL_ISOLINE_HEIGHT,
-  ISOLINE_COLOR_INDEX
+  ISOLINE_COLOR_INDEX,
+  ISOLINE_ENABLED_FEATURES
 ]
 
 replacementColorRequiredOptions = [
@@ -62,6 +66,18 @@ replacementColorRequiredOptions = [
   REPLACEMENT_COLOR_INDEX,
   REPLACEMENT_ORIGINAL_COLOR_INDEX
 ]
+
+LINE_ENDING_FLAVOR = 'lineEndingFlavor'
+
+class LineEnding(enum.Enum):
+  AUTODETECT = "autodetect"
+  WINDOWS = "\r\n"
+  UNIX = "\n"
+  UNKNOWN = "unknown"
+
+LINE_ENDING_AUTODETECT_TITLE = f"Autodetect"
+LINE_ENDING_WINDOWS_TITLE = f"Windows {repr(LineEnding.WINDOWS.value)}"
+LINE_ENDING_UNIX_TITLE = f"Unix {repr(LineEnding.UNIX.value)}"
 
 # user options dict
 userOptions = {}
@@ -87,6 +103,28 @@ def addExportToFilename(fn):
   if len(fnSplit) > 1:
     exportFn += fnSplit[1]
   return exportFn
+
+def determineLineEndingTypeInFile(fn) -> LineEnding:
+  with open(fn, mode='rb') as f:
+    sample1 = b''
+    sample2 = b''
+    c = 0
+    while True:
+      block = f.read(32)
+      if not block:
+        break
+      if c%2:
+        sample2=block
+      else:
+        sample1=block
+
+      if bytes(LineEnding.WINDOWS.value,'utf-8') in (sample1+sample2 if c%2 else sample2+sample1):
+        return LineEnding.WINDOWS
+      if bytes(LineEnding.UNIX.value,'utf-8') in (sample2+sample1 if not c%2 else sample1+sample2):
+        return LineEnding.UNIX
+      c^=1
+
+  return LineEnding.UNKNOWN 
 
 class App(tk.Tk):
   def __init__(self, queue: queue.Queue):
@@ -153,6 +191,18 @@ class App(tk.Tk):
       exportGcodeButton.config(text=truncateMiddleLength(fn, 50))
       userOptions[EXPORT_GCODE_FILENAME] = fn
 
+    def selectLineEndingFlavor(event):
+      print(event)
+      selectedLineEnding = None
+      if lineEndingFlavorComboBox.get() == LINE_ENDING_AUTODETECT_TITLE:
+        selectedLineEnding = LineEnding.AUTODETECT
+      elif lineEndingFlavorComboBox.get() == LINE_ENDING_WINDOWS_TITLE:
+        selectedLineEnding = LineEnding.WINDOWS
+      elif lineEndingFlavorComboBox.get() == LINE_ENDING_UNIX_TITLE:
+        selectedLineEnding = LineEnding.UNIX
+      userOptions[LINE_ENDING_FLAVOR] = selectedLineEnding
+      print("selected "+ lineEndingFlavorComboBox.get())
+
     importLabel = tk.Label(
       master=self,
       text='Print G-code '
@@ -201,21 +251,35 @@ class App(tk.Tk):
     )
     exportGcodeButton.grid(row=4, column=1, sticky=tk.EW, padx=10, pady=5)
 
+    # Line ending
+    lineEndingFlavorLabel = tk.Label(
+      master=self,
+      text='G-code Line Ending'
+    )
+    lineEndingFlavorLabel.grid(row=5, column=0, sticky=tk.W, padx=10)
+    lineEndingFlavorComboBox = ttk.Combobox(
+      state="readonly",
+      values=[LINE_ENDING_AUTODETECT_TITLE, LINE_ENDING_WINDOWS_TITLE, LINE_ENDING_UNIX_TITLE]
+    )
+    lineEndingFlavorComboBox.grid(row=5, column=1, sticky=tk.EW, padx=10, pady=5)
+    lineEndingFlavorComboBox.bind('<<ComboboxSelected>>', selectLineEndingFlavor)
+    lineEndingFlavorComboBox.current(0)
+
     separator = ttk.Separator(self, orient=tk.HORIZONTAL)
-    separator.grid(row=5, column=0, sticky=tk.EW, columnspan=2, padx=15, pady=5)
+    separator.grid(row=6, column=0, sticky=tk.EW, columnspan=2, padx=15, pady=5)
 
     self.processStatusLabel = tk.Label(
       master=self,
       textvariable=self.status,
       wraplength=450
     )
-    self.processStatusLabel.grid(row=6, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusLabel.grid(row=7, column=0, columnspan=2, padx=10, sticky=tk.EW)
     self.processStatusProgressBar = ttk.Progressbar(
       self,
       orient=tk.HORIZONTAL,
       variable=self.progress
     )
-    self.processStatusProgressBar.grid(row=7, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusProgressBar.grid(row=8, column=0, columnspan=2, padx=10, sticky=tk.EW)
 
     def startPostProcess():
       self.progress.set(0)
@@ -227,21 +291,25 @@ class App(tk.Tk):
           IMPORT_GCODE_FILENAME : userOptions.get(IMPORT_GCODE_FILENAME),
           IMPORT_OPTIONS_FILENAME : userOptions.get(IMPORT_OPTIONS_FILENAME),
           IMPORT_TOOLCHANGE_BARE_FILENAME : userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME),
-          EXPORT_GCODE_FILENAME : userOptions.get(EXPORT_GCODE_FILENAME)
+          EXPORT_GCODE_FILENAME : userOptions.get(EXPORT_GCODE_FILENAME),
+          LINE_ENDING_FLAVOR : userOptions.get(LINE_ENDING_FLAVOR)
         }
         periodicColors: list[PeriodicColor] = []
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dice_x1c_half.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dice_x1c.gcode'
+          userOptions[IMPORT_OPTIONS_FILENAME] = 'config-dice.json'
           userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
+          '''
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)
           ]
           replacementColors = [
             ReplacementColorAtHeight(colorIndex=3, originalColorIndex=0, startHeight=8, endHeight=float('inf'))
           ]
+          '''
         else:
           if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
             messagebox.showerror(
@@ -250,53 +318,70 @@ class App(tk.Tk):
             )
             return
           
-          # Read in user options
-          with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
-            try:
-              data = json.load(f)
-              if isinstance(data,dict):
-                for item in data.items():
-                  userOptions[item[0]] = item[1]
-              else:
-                raise ValueError()
-            except ValueError:
-              messagebox.showerror(
-                title='Unable to load options',
-                message='Check if options file format is JSON'
-              )
-              return
-
-          print(userOptions)
-          if all (opt in userOptions for opt in periodicColorRequiredOptions):
-            periodicColors.append(
-              createIsoline(
-                modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
-                modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
-                modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-                realWorldIsolineElevationInterval=userOptions[REAL_WORLD_ISOLINE_ELEVATION_INTERVAL],
-                realWorldIsolineElevationStart=userOptions[REAL_WORLD_ISOLINE_ELEVATION_START],
-                realWorldIsolineElevationEnd=userOptions[REAL_WORLD_ISOLINE_ELEVATION_END],
-                modelIsolineHeight=userOptions[MODEL_ISOLINE_HEIGHT],
-                colorIndex=userOptions[ISOLINE_COLOR_INDEX]
-              )
+        # Read in user options
+        with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
+          try:
+            data = json.load(f)
+            if isinstance(data,dict):
+              for item in data.items():
+                userOptions[item[0]] = item[1]
+            else:
+              raise ValueError()
+          except ValueError:
+            messagebox.showerror(
+              title='Unable to load options',
+              message='Check if options file format is JSON'
             )
-            print("Added isoline based on options")
+            return
 
-          if all (opt in userOptions for opt in replacementColorRequiredOptions):
-            replacementColors.append(
-              createReplacementColor(
-                modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
-                modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
-                modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-                realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START],
-                realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END],
-                colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
-                originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
-              )
+        print(userOptions)
+        if all (opt in userOptions for opt in periodicColorRequiredOptions):
+          periodicColors.append(
+            createIsoline(
+              modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
+              modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
+              modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
+              realWorldIsolineElevationInterval=userOptions[REAL_WORLD_ISOLINE_ELEVATION_INTERVAL],
+              realWorldIsolineElevationStart=userOptions[REAL_WORLD_ISOLINE_ELEVATION_START],
+              realWorldIsolineElevationEnd=userOptions[REAL_WORLD_ISOLINE_ELEVATION_END],
+              modelIsolineHeight=userOptions[MODEL_ISOLINE_HEIGHT],
+              colorIndex=userOptions[ISOLINE_COLOR_INDEX],
+              enabledFeatures=userOptions[ISOLINE_ENABLED_FEATURES]
             )
-            print("Added replacement color based on options")
-          
-        process(gcodeFlavor=MARLIN_2_BAMBUSLICER_MARKED_GCODE, inputFile=userOptions[IMPORT_GCODE_FILENAME], outputFile=userOptions[EXPORT_GCODE_FILENAME], toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], periodicColors=periodicColors, replacementColors=replacementColors, statusQueue=self.queue)
+          )
+          print("Added isoline based on options")
+
+        if all (opt in userOptions for opt in replacementColorRequiredOptions):
+          replacementColors.append(
+            createReplacementColor(
+              modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
+              modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
+              modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
+              realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START],
+              realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END],
+              colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
+              originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
+            )
+          )
+          print("Added replacement color based on options")
+        
+        lineEndingFlavor = userOptions[LINE_ENDING_FLAVOR] if userOptions[LINE_ENDING_FLAVOR] else LineEnding.AUTODETECT
+        print(f"Selected {repr(lineEndingFlavor)} line ending.")
+        if lineEndingFlavor == LineEnding.AUTODETECT:
+          lineEndingFlavor = determineLineEndingTypeInFile(userOptions[IMPORT_GCODE_FILENAME])
+          print(f"Detected {repr(lineEndingFlavor)} line ending in input G-code file.")
+          if lineEndingFlavor == LineEnding.UNKNOWN:
+            lineEndingFlavor = LineEnding.UNIX
+            print(f"Defaulting to {LINE_ENDING_UNIX_TITLE}")
+
+        process(gcodeFlavor=MARLIN_2_BAMBUSLICER_MARKED_GCODE, \
+                inputFile=userOptions[IMPORT_GCODE_FILENAME], \
+                outputFile=userOptions[EXPORT_GCODE_FILENAME], \
+                toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], \
+                periodicColors=periodicColors, \
+                replacementColors=replacementColors, \
+                lineEnding=lineEndingFlavor.value, \
+                statusQueue=self.queue)
 
       startPostProcessButton["state"] = "disabled"
 
@@ -315,7 +400,7 @@ class App(tk.Tk):
       textvariable=self.progressButtonString,
       command=startPostProcess
     )
-    startPostProcessButton.grid(row=8, column=0, sticky=tk.EW, columnspan=2, padx=10)
+    startPostProcessButton.grid(row=9, column=0, sticky=tk.EW, columnspan=2, padx=10)
 
     infoButton = tk.Button(
       master=self,
@@ -326,13 +411,13 @@ class App(tk.Tk):
           message='Add isolines and elevation color change features to your 3D Topo Maps when printed.\n\n www.AnsonLiu.com/maps'
         )
     )
-    infoButton.grid(row=9, column=0, sticky=tk.EW, columnspan=1, padx=10, pady=10)
+    infoButton.grid(row=10, column=0, sticky=tk.EW, columnspan=1, padx=10, pady=10)
 
     infoLabel = tk.Label(
       master=self,
       text=f"v{APP_VERSION}"
     )
-    infoLabel.grid(row=9, column=1, sticky=tk.E, padx=10)
+    infoLabel.grid(row=10, column=1, sticky=tk.E, padx=10)
 
     
 

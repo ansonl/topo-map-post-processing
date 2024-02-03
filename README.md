@@ -1,4 +1,4 @@
-# 3D Map Feature Gcode Post Processing
+# 3D G-code Map Feature Post Processing (MFPP)
 
 Add [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and colored [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/).
 
@@ -84,6 +84,7 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | `realWorldElevationReplacementColorEnd` | | 1 | Elevation based replacement color end elevation in real world units. |
 | `replacementColorIndex` | | 1 | Elevation based replacement color filament/color loaded position. Recommended index is 3 (fourth slot). |
 | `replacementOriginalColorIndex` | | 1 | Elevation based replacement color **replaced** filament/color loaded position. Recommended index is 0 (first slot). |
+| `enabledFeatures` | [string] | ≥0 | List of printing object feature types to color at isoline elevations.  |
 
 ### Elevation Change Options
 

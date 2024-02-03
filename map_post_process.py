@@ -9,7 +9,7 @@ UNIVERSAL_TOOLCHANGE_START = '^; MFPP TOOLCHANGE START'
 UNIVERSAL_TOOLCHANGE_END = '^; MFPP TOOLCHANGE END'
 UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 
-PERIODIC_LINE_FEATURES = ['Outer wall', 'Inner wall']
+#PERIODIC_LINE_FEATURES = ["Outer wall", "Inner wall"]
 
 # Gcode Constants
 MOVEMENT_G = '^(?:G(?:0|1|2|3) )(?:([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?'
@@ -64,8 +64,6 @@ LAYER_HEIGHT_PRUSASLICER = '^;HEIGHT:(\d*\.?\d*)' # Current layer height
 
 M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 
-LINE_ENDING = "\n"
-
 class StatusQueueItem:
   def __init__(self):
     self.status = None
@@ -109,13 +107,13 @@ class PrintState:
     #self.skipOriginalToolchangeOnLayer: bool = False
 
 class PeriodicColor:
-  def __init__(self, colorIndex = -1, startHeight = -1, endHeight = -1, height = -1, period = -1):
+  def __init__(self, colorIndex = -1, startHeight = -1, endHeight = -1, height = -1, period = -1, enabledFeatures=[]):
     self.colorIndex: int = colorIndex
     self.startHeight: float = startHeight
     self.endHeight: float = endHeight
     self.height: float = height
     self.period: float = period
-    self.enabledFeatures: list[str] = PERIODIC_LINE_FEATURES
+    self.enabledFeatures: list[str] = enabledFeatures
 
 class Feature:
   def __init__(self):
@@ -147,8 +145,8 @@ class ReplacementColorAtHeight:
     self.startHeight: float = startHeight
     self.endHeight: float = endHeight
 
-def createIsoline(modelToRealWorldDefaultUnits: float, modelOneToNVerticalScale: float, modelSeaLevelBaseThickness: float, realWorldIsolineElevationInterval: float, realWorldIsolineElevationStart: float, realWorldIsolineElevationEnd: float, modelIsolineHeight: float, colorIndex: int):
-  return PeriodicColor(colorIndex=colorIndex, startHeight=modelSeaLevelBaseThickness + modelToRealWorldDefaultUnits*realWorldIsolineElevationStart/modelOneToNVerticalScale, endHeight=modelToRealWorldDefaultUnits*realWorldIsolineElevationEnd/modelOneToNVerticalScale, height=modelIsolineHeight, period=modelToRealWorldDefaultUnits*realWorldIsolineElevationInterval/modelOneToNVerticalScale)
+def createIsoline(modelToRealWorldDefaultUnits: float, modelOneToNVerticalScale: float, modelSeaLevelBaseThickness: float, realWorldIsolineElevationInterval: float, realWorldIsolineElevationStart: float, realWorldIsolineElevationEnd: float, modelIsolineHeight: float, colorIndex: int, enabledFeatures: list[str]):
+  return PeriodicColor(colorIndex=colorIndex, startHeight=modelSeaLevelBaseThickness + modelToRealWorldDefaultUnits*realWorldIsolineElevationStart/modelOneToNVerticalScale, endHeight=modelToRealWorldDefaultUnits*realWorldIsolineElevationEnd/modelOneToNVerticalScale, height=modelIsolineHeight, period=modelToRealWorldDefaultUnits*realWorldIsolineElevationInterval/modelOneToNVerticalScale, enabledFeatures=enabledFeatures)
 
 def createReplacementColor(modelToRealWorldDefaultUnits: float, modelOneToNVerticalScale: float, modelSeaLevelBaseThickness: float, realWorldElevationStart: float, realWorldElevationEnd: float, colorIndex: int, originalColorIndex: int):
   return ReplacementColorAtHeight(colorIndex=colorIndex, originalColorIndex=originalColorIndex, startHeight=modelSeaLevelBaseThickness + modelToRealWorldDefaultUnits*realWorldElevationStart/modelOneToNVerticalScale, endHeight=modelSeaLevelBaseThickness + modelToRealWorldDefaultUnits*realWorldElevationEnd/modelOneToNVerticalScale)
@@ -183,7 +181,7 @@ def updateReplacementColors(printState: PrintState, rcs: list[ReplacementColorAt
     elif loadedColors[rc.originalColorIndex].replacementColorIndex == rc.colorIndex:
       loadedColors[rc.originalColorIndex].replacementColorIndex = -1
 
-def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicColor], rcs: list[ReplacementColorAtHeight]):
+def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: list[PeriodicColor], rcs: list[ReplacementColorAtHeight], le: str):
   cl = f.readline()
   # Look for start of layer
   changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
@@ -228,7 +226,7 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
     print(f"Is periodic line {printState.isPeriodicLine}")
 
     cp = f.tell()  
-    findLayerFeatures(f=f, gf=gf, printState=printState, pcs=pcs)
+    findLayerFeatures(f=f, gf=gf, printState=printState, pcs=pcs, le=le)
 
     #print features
     print(f"{len(printState.features)} features found")
@@ -247,84 +245,10 @@ def findChangeLayer(f, lastPrintState: PrintState, gf: str, pcs: list[PeriodicCo
     if firstNonePrimeTowerFeatureIndex == len(printState.features):
       firstNonePrimeTowerFeatureIndex = -1
 
-    # Check if first printing feature (that is not prime tower) differs in target color than the inherited printing color from last layer OR first feature and last layer are both NOT periodic color in which case prime tower is probably switching to the correct color for us at start
-    # Use first feature.start as first insertion point (+relocated prime tower) for toolchange if color change needed.
-    # If first feature is matching color already, determine insertion point later
-    '''
-    printState.toolchangeInsertionPoint = 0
-    if firstNonePrimeTowerFeatureIndex > -1 and ((printState.printingPeriodicColor ^ printState.features[firstNonePrimeTowerFeatureIndex].isPeriodicColor) or (printState.printingPeriodicColor == False and printState.features[firstNonePrimeTowerFeatureIndex].isPeriodicColor == False)):
-      printState.toolchangeInsertionPoint = printState.features[firstNonePrimeTowerFeatureIndex].start
-      print(f"Use index {firstNonePrimeTowerFeatureIndex} feature at {printState.features[firstNonePrimeTowerFeatureIndex].start} as first toolchange insertion point")
-    '''
-    
-    # unused because we insert per feature
-    #insertionPoint = findToolchangeInsertionPoint(f, gf)
-    #f.seek(cp, os.SEEK_SET)
-    #if insertionPoint == None:
-    #  print(f"Failed to find toolchange insertion point at layer Z_HEIGHT #{printState.height}")
-    '''
-    # Check if we need to switch to/from periodic color
-    if printState.printingPeriodicColor == True and printState.isPeriodicLine == True:
-      # previous and current layer are periodic lines
-      # may need to relocate prime tower or change prime tower TC color
-      # we don't know until we read lines later
-      # if prime tower is encountered and no insert point, ignore it
-      # if prime tower is found before insert point, ignore it
-      # if prime tower is found at insert point, change TC color to next feature color and insert
-      # if prime tower is found after insert point, ignore it
-      # if last feature and insert point is -1, add prime tower after last feature
-      # if prime tower is last feature, run it
-      return
-
-    elif printState.printingPeriodicColor ^ printState.isPeriodicLine:
-      # Previously no periodic color, new toolchange to periodic color
-      if printState.printingPeriodicColor == False:
-        # new inserted toolchange is isoline color
-        printState.toolchangeNewColorIndex = pcs[0].colorIndex
-        # check for existing toolchange on this layer
-        #print(printState.primeTower)     
-        if printState.primeTower and printState.primeTower.start and printState.primeTower.end:
-          # if toolchange exist, switch toolhead, do prime block. Do toolchange after STOPOBJ and M991. Relocate prime block. Skip found toolchange/primeblock on this layer.
-          if printState.primeTower.toolchange:
-            printState.toolchangeFullInsertionPoint = insertionPoint
-            printState.skipOriginalPrimeTowerAndToolchangeOnLayer = True
-          # if no toolchange exist on this layer and there is prime block, switch toolhead, do the prime block now and delete from later. Do toolchange after STOPOBJ and M991 (before START). Assume the prime block printing already happens after M991 so it is already in the correct place after inserting toolchange.
-          else: 
-            printState.toolchangeBareInsertionPoint = insertionPoint
-        else:
-          # if no prime block (and no toolchange), switch toolhead, no prime block. Do toolchange after M991. If toolchange did exist but no prime block, skip original toolchange.
-          printState.toolchangeBareInsertionPoint = insertionPoint
-          # If only toolchange exists and no prime tower was found. Skip the toolchange
-          if printState.primeTower and printState.primeTower.toolchange and printState.primeTower.toolchange.start:
-            printState.skipOriginalToolchangeOnLayer = True
-
-      # Previously printing periodic color, new toolchange to original color
-      else:
-        # new inserted toolchange is original color
-        # Check if original color has current replacement color loaded. Use original color or replacement color for toolchange new color index
-        printState.toolchangeNewColorIndex = printState.originalColor if loadedColors[printState.printingColor].replacementColorIndex == -1 else loadedColors[printState.printingColor].replacementColorIndex
-        # check for toolchange on this layer
-        if printState.primeTower and printState.primeTower.start:
-          # if toolchange exist, switch toolhead, no prime block. Do toolchange after STOPOBJ and M991
-          # OR
-          # if no toolchange exist on this layer and there is prime block, switch toolhead, do the prime block now and delete from later. Do toolchange after STOPOBJ and M991 (before START). Assume the prime block printing already happens after M991 so it is already in the correct place after inserting toolchange.
-          printState.toolchangeBareInsertionPoint = insertionPoint
-        else:
-        # if no prime block (and no toolchange), switch toolhead, no prime block. Do toolchange after M991. If toolchange did exist but no prime block, same thing.
-          printState.toolchangeBareInsertionPoint = insertionPoint
-    
-    # If we are not printing periodicColor on previous layer and current layer is not periodic color. 
-    elif printState.printingPeriodicColor == False and printState.isPeriodicLine == False:
-      # Check if original active color at this point (at layer start) has a replacement color
-      if loadedColors[printState.originalColor].replacementColorIndex != -1:
-        # Insert toolchange (bare) at layer start to the original color's replacement color
-        printState.toolchangeNewColorIndex = loadedColors[printState.originalColor].replacementColorIndex
-        printState.toolchangeBareInsertionPoint = insertionPoint
-    '''
     return printState
   return None
 
-def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: list[PeriodicColor]):
+def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: list[PeriodicColor], le: str):
   if gf == MARLIN_2_BAMBUSLICER_MARKED_GCODE:
     cl = True
     curFeature = None
@@ -353,7 +277,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
 
       # end if we find next layer marker
       if changeLayerMatchBambu or changeLayerMatchPrusa:
-        printState.layerEnd = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
         #print('got new layer at ',f.tell())
         if curFeature and curFeature.featureType != POTENTIAL_PRIME_TOWER:
           printState.features.append(curFeature)
@@ -370,13 +294,13 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           printState.features.append(curFeature)
         curFeature = Feature()
         curFeature.featureType = POTENTIAL_PRIME_TOWER
-        curFeature.start = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        curFeature.start = f.tell() - len(cl) - (len(le)-1)
         #print(f"found prime tower feature start (stop obj) at {f.tell() - len(cl)}")
         continue
 
       # Look for FEATURE to find feature type
       elif featureMatchBambu or featureMatchPrusa:
-        #print(f"found FEATURE match at {f.tell() - len(cl) - (len(LINE_ENDING)-1)}")
+        #print(f"found FEATURE match at {f.tell() - len(cl) - (len(le)-1)}")
 
         if curFeature and curFeature.featureType != POTENTIAL_PRIME_TOWER: # If we were looking at a feature already, end it and save it. Don't end potential prime tower
           if curFeature.featureType == PRIME_TOWER:
@@ -392,14 +316,14 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
 
         if curFeature == None:
           curFeature = Feature()
-          curFeature.start = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+          curFeature.start = f.tell() - len(cl) - (len(le)-1)
         if featureMatchBambu:
           curFeature.featureType = featureMatchBambu.groups()[0]
         elif featureMatchPrusa:
           curFeature.featureType = featureMatchPrusa.groups()[0]
 
         # mark feature as periodic color if needed
-        if printState.isPeriodicLine and curFeature.featureType in pcs[0].enabledFeatures:
+        if printState.isPeriodicLine and (curFeature.featureType in pcs[0].enabledFeatures or len(pcs[0].enabledFeatures) == 0):
           curFeature.isPeriodicColor = True
           curFeature.printingColor = pcs[0].colorIndex
 
@@ -414,7 +338,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       elif univeralToolchangeStartMatch: 
         curFeature.toolchange = Feature()
         curFeature.toolchange.featureType = TOOLCHANGE
-        curFeature.toolchange.start = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        curFeature.toolchange.start = f.tell() - len(cl) - (len(le)-1)
         #print(f"found toolchange start at {curFeature.toolchange.start}")
         continue
 
@@ -439,7 +363,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           #print(f"found prime tower end even though current feature is not prime tower and is type {curFeature.featureType}")
           curFeature = None
           continue
-        curFeature.end = f.tell() - len(cl) - (len(LINE_ENDING)-1)
+        curFeature.end = f.tell() - len(cl) - (len(le)-1)
         printState.features.append(curFeature)
         printState.primeTowerFeatureIndex = len(printState.features)-1
         #print(f"found prime tower end at {curFeature.end}")
@@ -447,28 +371,6 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
 
     if curFeature:
       printState.features.append(curFeature)
-'''
-def findToolchangeInsertionPoint(f: typing.TextIO, gf: str):
-  insertionPoint = Feature()
-  if gf == MARLIN_2_BAMBUSLICER_MARKED_GCODE:
-    insertionPoint.featureType = UNIVERSAL_LAYER_CHANGE_END
-    cl = True
-    while cl:
-      cl = f.readline()
-      universalLayerChangeEndMatch = re.match(UNIVERSAL_LAYER_CHANGE_END, cl)
-      changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
-      changeLayerMatchPrusa = re.match(CHANGE_LAYER_PRUSASLICER, cl)
-      featureMatchBambu = re.match(FEATURE_BAMBUSTUDIO, cl)
-      featureMatchPrusa = re.match(FEATURE_PRUSASLICER, cl)
-      if universalLayerChangeEndMatch:
-        insertionPoint.start = f.tell()
-        break
-      elif changeLayerMatchBambu or changeLayerMatchPrusa:
-        return None
-      elif featureMatchBambu or featureMatchPrusa:
-        return None
-    return insertionPoint
-'''
 
 # Get the actual processed printing color before next printing feature
 def determineBeforeNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: int, lastPrintingColor: int, passedPrimeTowerCount: int) -> tuple[int, bool]:
@@ -533,7 +435,7 @@ def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   
   out.write(cl)
 
-def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], statusQueue: queue.Queue):
+def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], lineEnding: str, statusQueue: queue.Queue):
   startTime = time.monotonic()
   try:
     with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
@@ -557,7 +459,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         nextFeaturePrintingColor, _ = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedPrimeTowerCount=0)
         printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
 
-        if ps.height == 10.0:
+        if ps.height == 14.4:
           0==0
         #if curFeatureIdx == 3:
         #  0==0
@@ -569,7 +471,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
       while cl:
         # Look for start of a layer CHANGE_LAYER
         cp = f.tell()
-        foundNewLayer = findChangeLayer(f,lastPrintState=currentPrint, gf=gcodeFlavor, pcs=periodicColors, rcs=replacementColors)
+        foundNewLayer = findChangeLayer(f,lastPrintState=currentPrint, gf=gcodeFlavor, pcs=periodicColors, rcs=replacementColors, le=lineEnding)
         if foundNewLayer:
           currentPrint = foundNewLayer
           #print(f"toolchangeNewColorIndex {currentPrint.toolchangeNewColorIndex}")
