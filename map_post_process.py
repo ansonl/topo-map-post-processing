@@ -64,7 +64,7 @@ LAYER_HEIGHT_PRUSASLICER = '^;HEIGHT:(\d*\.?\d*)' # Current layer height
 
 M991 = '^M991 S0 P(\d*)' # process indicator. Indicate layer insertion point.
 
-LINE_ENDING = "\r\n"
+LINE_ENDING = "\n"
 
 class StatusQueueItem:
   def __init__(self):
@@ -557,10 +557,12 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         nextFeaturePrintingColor, _ = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedPrimeTowerCount=0)
         printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
 
+        if ps.height == 10.0:
+          0==0
         #if curFeatureIdx == 3:
         #  0==0
 
-        return beforeNextFeaturePrintingColor != nextFeaturePrintingColor, printingToolchangeNewColorIndex, passedPrimeTowerCount
+        return beforeNextFeaturePrintingColor != printingToolchangeNewColorIndex, printingToolchangeNewColorIndex, passedPrimeTowerCount
 
       # Current line buffer
       cl = True
