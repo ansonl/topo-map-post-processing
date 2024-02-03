@@ -11,6 +11,10 @@ UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 
 PERIODIC_LINE_FEATURES = ['Outer wall', 'Inner wall']
 
+# Gcode Constants
+MOVEMENT_G = '^(?:G(?:0|1|2|3) )(?:([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?'
+MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
+
 # Bambu Gcode Constants
 STOP_OBJECT_BAMBUSTUDIO = '^; stop printing object, unique label id:\s(\d*)'
 FEATURE_BAMBUSTUDIO = '^; FEATURE: (.*)'
@@ -67,6 +71,15 @@ class StatusQueueItem:
     self.status = None
     self.progress = None
 
+# Position
+class Position:
+  def __init__(self):
+    self.X: float
+    self.Y: float
+    self.Z: float
+    self.E: float
+    self.F: float
+
 # State of current Print FILE
 class PrintState:
   def __init__(self):
@@ -81,11 +94,14 @@ class PrintState:
     self.printingPeriodicColor: bool = False # last layer wasPeriodicColor?
     self.isPeriodicLine: bool = False # is this layer supposed to have periodic lines?
 
+    # Movement info
+    self.originalPosition: Position = Position() # Restore original XYZ position after inserting a TC. Then do E2 for minimal TC. Full Prime tower TC already does E.8
+
     # Prime tower / Toolchange values for current layer
     self.features: list[Feature] = []
     self.primeTowerFeatureIndex: int = -1 # The available prime tower toolchange index in the feature list. -1 means prime tower does not exist or has been used already.
     self.toolchangeInsertionPoint: int = 0
-    #self.lastOriginalPosition: # for minimal tc
+    
     #self.toolchangeBareInsertionPoint: Feature = None
     #self.toolchangeFullInsertionPoint: Feature = None
     #self.toolchangeNewColorIndex: int = -1
@@ -585,6 +601,29 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         cl = f.readline()
         #print(".",end='')
 
+        # look for movement gcode and record last position
+        movementMatch = re.match(MOVEMENT_G, cl)
+        if movementMatch:
+          m = 0
+          while m+1 < len(movementMatch.groups()):
+            if movementMatch.groups()[m] == None:
+              break
+            axis = str(movementMatch.groups()[m])
+            axisValue = float(movementMatch.groups()[m+1])
+            if axis == 'X':
+              currentPrint.originalPosition.X = axisValue
+            elif axis == 'Y':
+              currentPrint.originalPosition.Y = axisValue
+            elif axis == 'Z':
+              currentPrint.originalPosition.Z = axisValue
+            elif axis == 'E':
+              currentPrint.originalPosition.E = axisValue
+            elif axis == 'F':
+              currentPrint.originalPosition.F = axisValue
+            else:
+              print(f"Unknown axis {axis} {axisValue} at {f.tell()}")
+            m += 2
+
         # look for toolchange T
         toolchangeMatch = re.match(TOOLCHANGE_T, cl)
         if toolchangeMatch:
@@ -599,6 +638,8 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           writeWithColorFilter(out, cl, loadedColors)
           insertedToolchangeAtCurrentPosition = True
           skipWrite = True
+
+          extraPrimeGcode = None
 
           # find the correct color for the toolchange
           nextFeatureColor, _ = determineNextFeaturePrintingColor(currentPrint.features, curFeatureIdx, currentPrint.originalColor, False)
@@ -629,9 +670,18 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
               tc_bare_code = tc_bare.read().replace('XX', str(printingToolchangeNewColorIndex))
               out.write(tc_bare_code)
             
+            extraPrimeGcode = MINIMAL_TOOLCHANGE_PRIME
+            
           currentPrint.printingColor = printingToolchangeNewColorIndex
           currentPrint.printingPeriodicColor = currentPrint.printingColor == periodicColors[0].colorIndex if len(periodicColors) > 0 else False
           
+          # Restore original position state before toolchange insert
+          out.write("; MFPP Post-Toolchange Restore Positions and Prime\n")
+          out.write(f"G0 X{currentPrint.originalPosition.X} Y{currentPrint.originalPosition.Y} Z{currentPrint.originalPosition.Z}\n")
+          if extraPrimeGcode:
+            out.write(f"{extraPrimeGcode}\n") #Extrude a bit for minimal toolchange
+          out.write(f"G1 F{currentPrint.originalPosition.F}\n")
+
           currentPrint.toolchangeInsertionPoint = 0 # clear toolchange insertion point
 
         curFeature = None
