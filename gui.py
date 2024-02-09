@@ -298,7 +298,7 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          userOptions[IMPORT_GCODE_FILENAME] = 'dice_prime.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'dice_sidebyside_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice.json'
           userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
