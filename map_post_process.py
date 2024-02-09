@@ -603,7 +603,21 @@ def startNewFeature(ps: PrintState, f: typing.TextIO, out: typing.TextIO, cl: st
   if ps.isPeriodicLine == True or curFeatureIdx == 0:
   # Restore pre-feature position state before entering feature and prime if toolchange was inserted at start of feature
     out.write("; MFPP Pre-Feature Restore Positions\n")
-    out.write(f"G0 X{curFeature.startPosition.X} Y{curFeature.startPosition.Y} Z{curFeature.startPosition.Z} F{curFeature.startPosition.F}\n")
+    restoreCmd = "G0"
+    try:
+      getattr(curFeature.startPosition, "X")
+      restoreCmd += f" X{curFeature.startPosition.X}"
+      getattr(curFeature.startPosition, "Y")
+      restoreCmd += f" Y{curFeature.startPosition.Y}"
+      getattr(curFeature.startPosition, "Z")
+      restoreCmd += f" Z{curFeature.startPosition.Z}"
+      getattr(curFeature.startPosition, "F")
+      restoreCmd += f" F{curFeature.startPosition.F}"
+    except AttributeError as e:
+      print(f"Restore position did not find axis {e} yet")
+    if len(restoreCmd) > 2:
+      out.write(f"{restoreCmd}\n")
+    #out.write(f"G0 X{curFeature.startPosition.X} Y{curFeature.startPosition.Y} Z{curFeature.startPosition.Z} F{curFeature.startPosition.F}\n")
     extraPrimeGcode = None
     if insertedToolchangeTypeAtCurrentPosition == ToolchangeType.FULL:
       extraPrimeGcode = MINIMAL_TOOLCHANGE_PRIME
