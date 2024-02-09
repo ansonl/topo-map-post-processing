@@ -1,4 +1,4 @@
-import re, os, typing, queue, time, datetime, math, enum
+import re, os, typing, queue, time, datetime, math, enum, copy
 
 # Gcode flavors
 MARLIN_2_BAMBUSLICER_OLD = 'marlin2bambuslicer_old'
@@ -12,7 +12,7 @@ UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 #PERIODIC_LINE_FEATURES = ["Outer wall", "Inner wall"]
 
 # Gcode Constants
-MOVEMENT_G = '^(?:G(?:0|1|2|3) )(?:([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?(?: ([XYZEF])(-?\d*\.?\d*))?'
+MOVEMENT_G = '^^(?:G(?:0|1|2|3) )\s?(?:([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?'
 FULL_TOOLCHANGE_PRIME = 'G1 E.8 F1800'
 MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
 
@@ -259,7 +259,8 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
       printState.startPositions.append(feat.start)
     for feat in printState.primeTowerFeatures:
       printState.startPositions.append(feat.start)
-    printState.stopPositions = printState.startPositions.copy().append(printState.layerEnd) #add layer end as a stop position
+    printState.stopPositions = printState.startPositions.copy()
+    printState.stopPositions.append(printState.layerEnd) #add layer end as a stop position
 
     #print rearranged features
     print(f"{len(printState.features)} printing features found")
@@ -322,7 +323,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # end if we find next layer marker
       if changeLayerMatchBambu or changeLayerMatchPrusa:
         printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
-        #print('got new layer at ',f.tell())
+        print('got new layer at ',f.tell())
         if curFeature and curFeature.featureType != POTENTIAL_PRIME_TOWER:
           printState.features.append(curFeature)
           curFeature = None
@@ -384,7 +385,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
         if curFeature == None:
           curFeature = Feature()
           curFeature.start = f.tell() - len(cl) - (len(le)-1)
-          curFeature.startPosition = curStartPosition # save last position state as start position for this feature
+          curFeature.startPosition = copy.copy(curStartPosition) # save last position state as start position for this feature
           curFeature.originalColor = curOriginalColor # save current original color as color for this feature
         if featureMatchBambu:
           curFeature.featureType = featureMatchBambu.groups()[0]
@@ -470,6 +471,54 @@ def determineNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: in
         lastPrintingColor = nextFeature.printingColor
   return lastPrintingColor, passedNonTCPrimeTowers
 
+# Check if next layer needs a toolchange and the next toolchange color
+def determineIfNextFeatureNeedsToolchange(ps: PrintState, cfi: int) -> tuple[bool, int, int] :
+  # the active printing color before starting the next feature
+  beforeNextFeaturePrintingColor, _ = determineBeforeNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.printingColor, passedNonTCPrimeTowers=0)
+  # the correct target printing color for the next feature (pass in original color as initial color to get correct original color index if needed)
+  nextFeaturePrintingColor, passedNonTCPrimeTowers = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedNonTCPrimeTowers=0)
+  printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
+
+  #debug breakpoints
+  if ps.height == 0.6:
+    0==0
+
+  return beforeNextFeaturePrintingColor != printingToolchangeNewColorIndex, printingToolchangeNewColorIndex, passedNonTCPrimeTowers
+
+# Update states for movment POSITION and TOOL
+def updatePrintState(ps: PrintState, cl: int, clsp: int, sw: bool):
+  # look for movement gcode and record last position
+  movementMatch = re.match(MOVEMENT_G, cl)
+  if movementMatch:
+    m = 0
+    while m+1 < len(movementMatch.groups()):
+      if movementMatch.groups()[m] == None:
+        break
+      axis = str(movementMatch.groups()[m])
+      axisValue = float(movementMatch.groups()[m+1])
+      if axis == 'X':
+        ps.originalPosition.X = axisValue
+      elif axis == 'Y':
+        ps.originalPosition.Y = axisValue
+      elif axis == 'Z':
+        ps.originalPosition.Z = axisValue
+      elif axis == 'E':
+        ps.originalPosition.E = axisValue
+      elif axis == 'F':
+        ps.originalPosition.F = axisValue
+      else:
+        print(f"Unknown axis {axis} {axisValue} at {clsp}")
+      m += 2
+
+  # look for toolchange T
+  toolchangeMatch = re.match(TOOLCHANGE_T, cl)
+  if toolchangeMatch:
+    print(f"found toolchange to {int(toolchangeMatch.groups()[0])}")
+    ps.originalColor = int(toolchangeMatch.groups()[0])
+    if sw == False:
+      ps.printingColor = ps.originalColor
+      print(f"found printing color toolchange to {int(toolchangeMatch.groups()[0])}")
+
 def substituteNewColor(cl, newColorIndex: int):
   cl = re.sub(M620, f"M620 S{newColorIndex}A", cl)
   cl = re.sub(TOOLCHANGE_T, f"T{newColorIndex}", cl)
@@ -508,6 +557,9 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
   startTime = time.monotonic()
   try:
     with open(inputFile, mode='r') as f, open(outputFile, mode='w') as out:
+      # Persistent variables for the read loop
+      
+      # The current print state
       currentPrint: PrintState = PrintState()
 
       #Get total length of file
@@ -518,65 +570,22 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
       # Don't write to output if True
       skipWrite = False
 
-      # Check if next layer needs a toolchange and the next toolchange color
-      def determineIfNextFeatureNeedsToolchange(ps: PrintState, cfi: int) -> tuple[bool, int, int] :
-        # the active printing color before starting the next feature
-        beforeNextFeaturePrintingColor, _ = determineBeforeNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.printingColor, passedNonTCPrimeTowers=0)
-        # the correct target printing color for the next feature (pass in original color as initial color to get correct original color index if needed)
-        nextFeaturePrintingColor, passedNonTCPrimeTowers = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedNonTCPrimeTowers=0)
-        printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
-
-        #debug breakpoints
-        #if ps.height == 14.4:
-        #  0==0
-        if cfi == 11:
-          0==0
-
-        return beforeNextFeaturePrintingColor != printingToolchangeNewColorIndex, printingToolchangeNewColorIndex, passedNonTCPrimeTowers
-
       curFeatureIdx = -1
       curFeature = None
 
       # Current line buffer
       cl = True
       while cl:
-        clsp = f.tell() - len(cl) - (len(lineEnding)-1) # read line start position
         cl = f.readline()
+        clsp = f.tell() - len(cl) - (len(lineEnding)-1) # read line start position
         cp = f.tell() # position is start of next line after read line
 
-        # Update state
-        # look for movement gcode and record last position
-        movementMatch = re.match(MOVEMENT_G, cl)
-        if movementMatch:
-          m = 0
-          while m+1 < len(movementMatch.groups()):
-            if movementMatch.groups()[m] == None:
-              break
-            axis = str(movementMatch.groups()[m])
-            axisValue = float(movementMatch.groups()[m+1])
-            if axis == 'X':
-              currentPrint.originalPosition.X = axisValue
-            elif axis == 'Y':
-              currentPrint.originalPosition.Y = axisValue
-            elif axis == 'Z':
-              currentPrint.originalPosition.Z = axisValue
-            elif axis == 'E':
-              currentPrint.originalPosition.E = axisValue
-            elif axis == 'F':
-              currentPrint.originalPosition.F = axisValue
-            else:
-              print(f"Unknown axis {axis} {axisValue} at {f.tell()}")
-            m += 2
-
-        # look for toolchange T
-        toolchangeMatch = re.match(TOOLCHANGE_T, cl)
-        if toolchangeMatch:
-          currentPrint.originalColor = int(toolchangeMatch.groups()[0])
-          if skipWrite == False:
-            currentPrint.printingColor = currentPrint.originalColor
-
+        # Update current print state variables
+        updatePrintState(ps=currentPrint, cl=cl, clsp=clsp, sw=skipWrite)
         
-        
+        if currentPrint.height == 0.6 and curFeatureIdx == 5:
+          0==0
+
         # Check if we are at toolchange insertion point. This point could be active when no more features are remaining and before any features are found (TC can be inserted after change_layer found)
         insertedToolchangeTypeAtCurrentPosition = ToolchangeType.NONE
         if f.tell() == currentPrint.toolchangeInsertionPoint:
@@ -664,7 +673,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             curFeature = currentPrint.features.pop(0)
             curFeatureIdx += 1
 
-            print(f"Starting feature {cl} {curFeature.start}")
+            print(f"Starting feature index {curFeatureIdx} position {cl} {curFeature.start}")
 
             #If we didn't insert a toolchange at current position, stop normal skip write now that we got to a new feature
             if insertedToolchangeTypeAtCurrentPosition == ToolchangeType.NONE:
@@ -704,7 +713,10 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
 
               # Check if next feature needs a toolchange. Don't check on last feature because we check for the first feature in next layer when we find next layer. We do not know target printing color of first feature on next layer yet. 
               if len(currentPrint.features) > 0:
-                nextFeatureNeedsToolchange, printingToolchangeNewColorIndex, _ = determineIfNextFeatureNeedsToolchange(currentPrint, 0)
+                if currentPrint.height == 0.6 and curFeatureIdx == 8:
+                  0==0
+
+                nextFeatureNeedsToolchange, printingToolchangeNewColorIndex, _ = determineIfNextFeatureNeedsToolchange(currentPrint, -1)
                 if nextFeatureNeedsToolchange: #if printing color before and printing color in next feature do not match, insert a toolchange at start of next feature (or at layer end if this is the last feature)
                   currentPrint.toolchangeInsertionPoint = currentPrint.features[0].start
 
@@ -713,9 +725,13 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
                 print(f"On last feature and {len(currentPrint.primeTowerFeatures)} available prime towers not used. Set toolchange insert at layer end {currentPrint.layerEnd}")
                 currentPrint.toolchangeInsertionPoint = currentPrint.layerEnd
 
+              if currentPrint.height == 0.6 and curFeatureIdx == 5:
+                0==0
+
               # skip feature original toolchanges
               if curFeature.toolchange:
                 curFeature.skipType = ToolchangeType.FEATURE_ORIG_TOOLCHANGE
+                print(f"Current feature has original toolchange, mark for skip")
         
         # Start skip if feature.toolchange is reached and we marked feature as needing original toolchange skipped
         if curFeature and curFeature.skipType == ToolchangeType.FEATURE_ORIG_TOOLCHANGE and f.tell() == curFeature.toolchange.start:
