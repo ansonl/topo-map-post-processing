@@ -8,8 +8,6 @@ G1 X169.000 F2400
 G4 S0
 G1 E-20 F2100
 ; Filament-specific end gcode
-; removed M104
-; MFPP TOOLCHANGE START
 ; Change Tool -> ToolXX
 G1 F21000
 P0 S1 L2 D0
@@ -17,7 +15,6 @@ P0 S1 L2 D0
 M109 S215 TXX
 TXX S1 L0 D0
 
-; MFPP TOOLCHANGE END
 M900 K0.05 ; Filament gcode
 
 
