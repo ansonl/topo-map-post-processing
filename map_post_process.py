@@ -95,8 +95,8 @@ class PrintState:
     self.layerEnd: int = 0
 
     # Color info
-    self.originalColor: int = -1 # last color changed to in original print
-    self.layerEndOriginalColor: int = -1
+    self.originalColor: int = -1 # last color changed to in original print at the start of the layer
+    self.layerEndOriginalColor: int = -1 #last color changed to in the original print at the end of the current layer
     self.printingColor: int = -1 # current modified color
     self.printingPeriodicColor: bool = False # last layer wasPeriodicColor?
     self.isPeriodicLine: bool = False # is this layer supposed to have periodic lines?
@@ -314,7 +314,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
     cl = True
     curFeature = None
     curStartPosition = printState.originalPosition #last position before entering feature
-    curOriginalColor = printState.originalColor #last original color before entering feature
+    curOriginalColor = printState.originalColor # original color at start of layer
     while cl:
       cl = f.readline()
       # next layer marker
@@ -597,8 +597,8 @@ def determineNextFeaturePrintingColor(features: list[Feature], curFeatureIdx: in
 def determineIfNextFeatureNeedsToolchange(ps: PrintState, cfi: int) -> tuple[bool, int, int] :
   # the active printing color before starting the next feature
   beforeNextFeaturePrintingColor, _ = determineBeforeNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.printingColor, passedNonTCPrimeTowers=0)
-  # the correct target printing color for the next feature (pass in original color as initial color to get correct original color index if needed)
-  nextFeaturePrintingColor, passedNonTCPrimeTowers = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=ps.originalColor, passedNonTCPrimeTowers=0)
+  # the correct target printing color for the next feature
+  nextFeaturePrintingColor, passedNonTCPrimeTowers = determineNextFeaturePrintingColor(features=ps.features, curFeatureIdx=cfi, lastPrintingColor=-1, passedNonTCPrimeTowers=0)
   printingToolchangeNewColorIndex = currentPrintingColorIndexForColorIndex(nextFeaturePrintingColor, loadedColors)
 
   #debug breakpoints
