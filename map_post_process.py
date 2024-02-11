@@ -287,6 +287,8 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
       print(f"{fi} {feat.featureType} start: {feat.start} end: {feat.end} originalcolor: {feat.originalColor} isPeriodicColor:{feat.isPeriodicColor} printingColor:{feat.printingColor}")
       if feat.toolchange:
         print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.end} printingColor:{feat.toolchange.printingColor}")
+      if feat.wipeEnd:
+        print(f"wipeEnd.start: {feat.wipeEnd.start}")
       fi += 1
 
     #print prime tower features (only filled when periodic layer)
@@ -563,6 +565,13 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
             skipWriteToolchange = True
             wipeStartFoundCount += 1
 
+        # Skip WIPE_END of the inserted prime tower
+        if nextAvailablePrimeTowerFeature.wipeEnd and f.tell() == nextAvailablePrimeTowerFeature.wipeEnd.start:
+          out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
+          out.write("; WIPE_END placeholder for BambuStudio Gcode Preview\n")
+          out.write("; MFPP Original WIPE_END skipped\n")
+          continue
+
         if skipWriteToolchange == False:
           cl = substituteNewColor(cl, nextFeatureColor)
           writeWithColorFilter(out, cl, loadedColors)
@@ -583,15 +592,6 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
       
     ps.printingColor = printingToolchangeNewColorIndex
     ps.printingPeriodicColor = ps.printingColor == pcs[0].colorIndex if len(pcs) > 0 else False
-    
-    '''
-    # Restore original position state before toolchange insert
-    out.write("; MFPP Post-Toolchange Restore Positions and Prime\n")
-    out.write(f"G0 X{currentPrint.originalPosition.X} Y{currentPrint.originalPosition.Y} Z{currentPrint.originalPosition.Z}\n")
-    if extraPrimeGcode:
-      out.write(f"{extraPrimeGcode}\n") #Extrude a bit for minimal toolchange
-    out.write(f"G1 F{currentPrint.originalPosition.F}\n")
-    '''
 
     ps.toolchangeInsertionPoint = 0 # clear toolchange insertion point
   return insertedToolchangeTypeAtCurrentPosition
@@ -879,6 +879,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             writeWithColorFilter(out, cl, loadedColors)
             #print(f"Skipping feature WIPE_END. Start skip at {f.tell()}")
             out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer")
+            out.write("; WIPE_END placeholder for BambuStudio Gcode Preview")
             out.write("; MFPP Original WIPE_END skipped\n")
             currentPrint.skipWrite = True
 
