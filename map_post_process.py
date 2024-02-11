@@ -279,7 +279,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     print(f"{len(printState.features)} printing features and {len(printState.primeTowerFeatures)} reusable prime towers found")
 
-    
+    '''
     #print rearranged features
     print(f"{len(printState.features)} printing features found")
     fi = 0
@@ -299,7 +299,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
         print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.end} printingColor:{feat.toolchange.printingColor}")
       if feat.wipeEnd:
         print(f"wipeEnd.start: {feat.wipeEnd.start}")
-    
+    '''
 
     #Debug breakpoint after layer feature cataloging
     if printState.height == 0.6:
@@ -878,8 +878,8 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           if curFeature.wipeEnd and f.tell() == curFeature.wipeEnd.start and curFeature.featureType in WIPE_END_REMOVE_FEATURES:
             writeWithColorFilter(out, cl, loadedColors)
             #print(f"Skipping feature WIPE_END. Start skip at {f.tell()}")
-            out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer")
-            out.write("; WIPE_END placeholder for BambuStudio Gcode Preview")
+            out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
+            out.write("; WIPE_END placeholder for BambuStudio Gcode Preview\n")
             out.write("; MFPP Original WIPE_END skipped\n")
             currentPrint.skipWrite = True
 
