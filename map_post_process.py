@@ -59,13 +59,9 @@ WIPE_TOWER = 'Wipe tower'
 # prime tower more lines
 START_OBJECT_PRUSASLICER = '^; printing object'
 
-CHANGE_LAYER_BAMBUSTUDIO = '^; CHANGE_LAYER'
-Z_HEIGHT_BAMBUSTUDIO = '^; Z_HEIGHT: (\d*\.?\d*)' # Current object layer height including current layer height
-LAYER_HEIGHT_BAMBUSTUDIO = '^; LAYER_HEIGHT: (\d*\.?\d*)' # Current layer height
-
-CHANGE_LAYER_PRUSASLICER = '^;LAYER_CHANGE'
-Z_HEIGHT_PRUSASLICER = '^;Z:(\d*\.?\d*)' # Current object layer height including current layer height
-LAYER_HEIGHT_PRUSASLICER = '^;HEIGHT:(\d*\.?\d*)' # Current layer height
+LAYER_CHANGE = '^;\s?(?:CHANGE_LAYER|LAYER_CHANGE)'
+LAYER_Z_HEIGHT = '^;\s?(?:Z_HEIGHT|Z):\s?(\d*\.?\d*)' # Current object layer height including current layer height
+LAYER_HEIGHT = '^;\s?(?:LAYER_HEIGHT|HEIGHT):\s?(\d*\.?\d*)' # Current layer height
 
 CHANGE_LAYER_CURA = '^;LAYER:\d*'
 FEATURE_CURA = '^;TYPE:(.*)'
@@ -211,9 +207,8 @@ def updateReplacementColors(printState: PrintState, rcs: list[ReplacementColorAt
 def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: list[PeriodicColor], rcs: list[ReplacementColorAtHeight], le: str):
   cl = f.readline()
   # Look for start of layer
-  changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
-  changeLayerMatchPrusa = re.match(CHANGE_LAYER_PRUSASLICER, cl)
-  if changeLayerMatchBambu or changeLayerMatchPrusa:
+  changeLayerMatch = re.match(LAYER_CHANGE, cl)
+  if changeLayerMatch:
     # Create new print state for the new found layer and carry over some state that should be preserved between layers.
     printState = PrintState()
     printState.previousLayerHeight = lastPrintState.layerHeight
@@ -224,25 +219,19 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     # Find Z_HEIGHT value
     cl = f.readline()
-    zHeightMatchBambu = re.match(Z_HEIGHT_BAMBUSTUDIO, cl)
-    zHeightMatchPrusa = re.match(Z_HEIGHT_PRUSASLICER, cl)
-    if zHeightMatchBambu or zHeightMatchPrusa:
-      if zHeightMatchBambu:
-        printState.height = float(zHeightMatchBambu.groups()[0])
-      if zHeightMatchPrusa:
-        printState.height = float(zHeightMatchPrusa.groups()[0])
+    zHeightMatch = re.match(LAYER_Z_HEIGHT, cl)
+    if zHeightMatch:
+      if zHeightMatch:
+        printState.height = float(zHeightMatch.groups()[0])
         #print(f"{Z_HEIGHT} {cl.groups()[0]}")
       print(f"\nProcessing height {printState.height}")
 
     # Find LAYER_HEIGHT value
     cl = f.readline()
-    layerHeightMatchBambu = re.match(LAYER_HEIGHT_BAMBUSTUDIO, cl)
-    layerHeightMatchPrusa = re.match(LAYER_HEIGHT_PRUSASLICER, cl)
-    if layerHeightMatchBambu or layerHeightMatchPrusa:
-      if layerHeightMatchBambu:
-        printState.layerHeight = float(layerHeightMatchBambu.groups()[0])
-      if layerHeightMatchPrusa:
-        printState.layerHeight = float(layerHeightMatchPrusa.groups()[0])
+    layerHeightMatch = re.match(LAYER_HEIGHT, cl)
+    if layerHeightMatch:
+      if layerHeightMatch:
+        printState.layerHeight = float(layerHeightMatch.groups()[0])
 
     #update loaded colors replacement color data based on current height
     updateReplacementColors(printState, rcs)
@@ -337,8 +326,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
     while cl:
       cl = f.readline()
       # next layer marker
-      changeLayerMatchBambu = re.match(CHANGE_LAYER_BAMBUSTUDIO, cl)
-      changeLayerMatchPrusa = re.match(CHANGE_LAYER_PRUSASLICER, cl)
+      changeLayerMatch = re.match(LAYER_CHANGE, cl)
 
       # start marker for prime tower feature
       #stopObjMatchBambu = re.match(STOP_OBJECT_BAMBUSTUDIO, cl)
@@ -361,7 +349,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       #startObjMatchPrusa = re.match(START_OBJECT_PRUSASLICER, cl)
 
       # end if we find next layer marker
-      if changeLayerMatchBambu or changeLayerMatchPrusa:
+      if changeLayerMatch:
         printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
         #print('got new layer at ',f.tell())
         curFeature.end = f.tell()
