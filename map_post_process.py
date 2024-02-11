@@ -253,6 +253,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     print(f"Is printing periodic color {printState.printingPeriodicColor}")
     print(f"Is periodic line {printState.isPeriodicLine}")
 
+    #Debug breakpoint before layer feature cataloging
     if printState.height == 0.6:
       0==0
 
@@ -278,7 +279,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     print(f"{len(printState.features)} printing features and {len(printState.primeTowerFeatures)} reusable prime towers found")
 
-    '''
+    
     #print rearranged features
     print(f"{len(printState.features)} printing features found")
     fi = 0
@@ -296,8 +297,9 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
         print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.end} printingColor:{feat.toolchange.printingColor}")
       if feat.wipeEnd:
         print(f"wipeEnd.start: {feat.wipeEnd.start}")
-    '''
+    
 
+    #Debug breakpoint after layer feature cataloging
     if printState.height == 0.6:
       0==0
 
@@ -417,7 +419,9 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       if featureMatchBambu or featureMatchPrusa:
         #print(f"found FEATURE match at {f.tell() - len(cl) - (len(le)-1)}")
 
-        # Don't end potential prime tower if we found prime tower feature for Bambu
+        # Don't end prime tower if we found prime tower feature for Bambu
+        if curFeature and curFeature.featureType == PRIME_TOWER and featureMatchPrusa and featureMatchPrusa.groups()[0] == WIPE_TOWER:
+          continue
         '''
         if curFeature and curFeature.featureType == POTENTIAL_PRIME_TOWER or curFeature and curFeature.featureType == PRIME_TOWER:
           if (featureMatchBambu and featureMatchBambu.groups()[0] == PRIME_TOWER) or (featureMatchPrusa and featureMatchPrusa.groups()[0] == WIPE_TOWER):
