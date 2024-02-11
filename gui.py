@@ -379,7 +379,7 @@ class App(tk.Tk):
             lineEndingFlavor = LineEnding.UNIX
             print(f"Defaulting to {LINE_ENDING_UNIX_TITLE}")
 
-        process(gcodeFlavor=MARLIN_2_BAMBUSLICER_MARKED_GCODE, \
+        process(gcodeFlavor=MARLIN_2_BAMBU_PRUSA_MARKED_GCODE, \
                 inputFile=userOptions[IMPORT_GCODE_FILENAME], \
                 outputFile=userOptions[EXPORT_GCODE_FILENAME], \
                 toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], \
