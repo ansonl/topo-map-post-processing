@@ -3,51 +3,86 @@ import re, os, typing, queue, time, datetime, math, enum, copy
 # Gcode flavors
 MARLIN_2_BAMBU_PRUSA_MARKED_GCODE = 'marlin2_bambu_prusa_markedtoolchangegcode'
 
-# Universal Gcode Constants
+# Universal MFPP Tag Gcode Constants
 UNIVERSAL_TOOLCHANGE_START = '^; MFPP TOOLCHANGE START'
 UNIVERSAL_TOOLCHANGE_END = '^; MFPP TOOLCHANGE END'
 UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 
 #PERIODIC_LINE_FEATURES = ["Outer wall", "Inner wall"]
 
-# Gcode Constants
+# Gcode Regex and Constants
+
+# Movement
 MOVEMENT_G = '^^(?:G(?:0|1|2|3) )\s?(?:([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?'
+
+# Layer Change
+LAYER_CHANGE = '^;\s?(?:CHANGE_LAYER|LAYER_CHANGE)'
+LAYER_Z_HEIGHT = '^;\s?(?:Z_HEIGHT|Z):\s?(\d*\.?\d*)' # Current object layer height including current layer height
+LAYER_HEIGHT = '^;\s?(?:LAYER_HEIGHT|HEIGHT):\s?(\d*\.?\d*)' # Current layer height
+
+# Prime inserts
 FULL_TOOLCHANGE_PRIME = 'G1 E.8 F1800'
 MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
-BAMBU_PRUSA_WIPE_END_PRIME = 'G1 E.2 F1500'
+#FEATURE_START_DEFAULT_PRIME = 'G1 E.2 F1500'
 
-STOP_OBJECT = '^;\s(?:stop printing object)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
-
-# Bambu Gcode Constants
+# Feature/Line Type
 FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
-#FEATURE_END_BAMBUSTUDIO = '^; filament end gcode' #feature ends when this gcode is found or new feature is found
 PRIME_TOWER = 'Prime tower'
+WIPE_TOWER = 'Wipe tower'
 TOOLCHANGE = 'Toolchange'
+
+# Slicer toolchange start
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
+
+# Toolchange
+M620 = '^M620 S(\d*)A'
+TOOLCHANGE_T = '^T(?!255$|1000|1100$)(\d*)' # Do not match T255,T1000,T1100 which are nonstandard by Bambu
+M621 = '^M621 S(\d*)A'
+
+# Feature Wipe sections
 WIPE_START = '^;\s?WIPE_START'
 WIPE_END = '^;\s?WIPE_END'
+
+# Start and stop individual object
+#STOP_OBJECT = '^;\s(?:stop printing object)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
+#START_OBJECT = '^;\s(?:start printing object|printing)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
+
+
+
+CHANGE_LAYER_CURA = '^;LAYER:\d*'
+FEATURE_CURA = '^;TYPE:(.*)'
+
+
+# Bambu Gcode Order
+#FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
+#FEATURE_END_BAMBUSTUDIO = '^; filament end gcode' #feature ends when this gcode is found or new feature is found
+#PRIME_TOWER = 'Prime tower'
+#TOOLCHANGE = 'Toolchange'
+#TOOLCHANGE_START = '^; CP TOOLCHANGE START'
+#WIPE_START = '^;\s?WIPE_START'
+#WIPE_END = '^;\s?WIPE_END'
 # Toolchange (change_filament) start
 #G392 = '^G392 S(\d*)' #G392 only for A1?
-M620 = '^M620 S(\d*)A'
+#M620 = '^M620 S(\d*)A'
 # Toolchange core movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
 #WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
-TOOLCHANGE_T = '^T(?!255$|1000|1100$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
+#TOOLCHANGE_T = '^T(?!255$|1000|1100$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
 # Prime tower printing actually starts after M621
-M621 = '^M621 S(\d*)A'
+#M621 = '^M621 S(\d*)A'
 #; CP TOOLCHANGE WIPE
 # wipe/prime tower here
 #; WIPE_TOWER_END
 #G92 E0
 #; CP TOOLCHANGE END
-START_OBJECT = '^;\s(?:start printing object|printing)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
+#START_OBJECT = '^;\s(?:start printing object|printing)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
 
-# Prusa Gcode Constants
+# Prusa Gcode Order
 #'^; stop printing object'
 #WIPE_START -skip this part
 #WIPE_END
 # wipe off object
 #'^;TYPE:(.*)'
-WIPE_TOWER = 'Wipe tower'
+#WIPE_TOWER = 'Wipe tower'
 #TOOLCHANGE_START
 # prime tower line with old tool
 #UNIVERSAL_TOOLCHANGE_START
@@ -58,12 +93,7 @@ WIPE_TOWER = 'Wipe tower'
 #;Type:Wipe tower
 # prime tower more lines
 
-LAYER_CHANGE = '^;\s?(?:CHANGE_LAYER|LAYER_CHANGE)'
-LAYER_Z_HEIGHT = '^;\s?(?:Z_HEIGHT|Z):\s?(\d*\.?\d*)' # Current object layer height including current layer height
-LAYER_HEIGHT = '^;\s?(?:LAYER_HEIGHT|HEIGHT):\s?(\d*\.?\d*)' # Current layer height
 
-CHANGE_LAYER_CURA = '^;LAYER:\d*'
-FEATURE_CURA = '^;TYPE:(.*)'
 
 class StatusQueueItem:
   def __init__(self):
@@ -671,14 +701,14 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
     # Restore any prime needed
     extraPrimeGcode = None
     if insertedToolchangeTypeAtCurrentPosition == ToolchangeType.FULL:
-      extraPrimeGcode = MINIMAL_TOOLCHANGE_PRIME
-    elif insertedToolchangeTypeAtCurrentPosition == ToolchangeType.MINIMAL:
       extraPrimeGcode = FULL_TOOLCHANGE_PRIME
+    elif insertedToolchangeTypeAtCurrentPosition == ToolchangeType.MINIMAL:
+      extraPrimeGcode = MINIMAL_TOOLCHANGE_PRIME
     elif ps.featureWipeEndPrime:
       extraPrimeGcode = f"G1 E{ps.featureWipeEndPrime.E} F{ps.featureWipeEndPrime.F}"
       ps.featureWipeEndPrime = None # clear feature wipe end prime position which had prev feature wipe values
-    elif gf == MARLIN_2_BAMBU_PRUSA_MARKED_GCODE:
-      extraPrimeGcode = BAMBU_PRUSA_WIPE_END_PRIME
+    #elif gf == MARLIN_2_BAMBU_PRUSA_MARKED_GCODE:
+    #  extraPrimeGcode = FEATURE_START_DEFAULT_PRIME
     if extraPrimeGcode:
       out.write(f"{extraPrimeGcode}\n") #Extrude a bit for minimal toolchange
 
