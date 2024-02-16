@@ -14,23 +14,23 @@ UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 MOVEMENT_G = '^^(?:G(?:0|1|2|3) )\s?(?:([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?'
 FULL_TOOLCHANGE_PRIME = 'G1 E.8 F1800'
 MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
-BAMBU_PRUSA_WIPE_END_PRIME = 'G1 E.65 F1500'
+BAMBU_PRUSA_WIPE_END_PRIME = 'G1 E.2 F1500'
+
+STOP_OBJECT = '^;\s(?:stop printing object)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
 
 # Bambu Gcode Constants
-STOP_OBJECT_BAMBUSTUDIO = '^; stop printing object, unique label id:\s(\d*)'
-FEATURE_BAMBUSTUDIO = '^; FEATURE: (.*)'
-FEATURE_END_BAMBUSTUDIO = '^; filament end gcode' #feature ends when this gcode is found or new feature is found
+FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
+#FEATURE_END_BAMBUSTUDIO = '^; filament end gcode' #feature ends when this gcode is found or new feature is found
 PRIME_TOWER = 'Prime tower'
 TOOLCHANGE = 'Toolchange'
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
 WIPE_START = '^;\s?WIPE_START'
 WIPE_END = '^;\s?WIPE_END'
-WIPE_END_REMOVE_FEATURES = ["External perimeter", "Outer wall"]
 # Toolchange (change_filament) start
-G392 = '^G392 S(\d*)' #G392 only for A1
+#G392 = '^G392 S(\d*)' #G392 only for A1?
 M620 = '^M620 S(\d*)A'
 # Toolchange core movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
-WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
+#WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
 TOOLCHANGE_T = '^T(?!255$|1000|1100$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
 # Prime tower printing actually starts after M621
 M621 = '^M621 S(\d*)A'
@@ -39,14 +39,14 @@ M621 = '^M621 S(\d*)A'
 #; WIPE_TOWER_END
 #G92 E0
 #; CP TOOLCHANGE END
-START_OBJECT_BAMBUSTUDIO = '^; start printing object, unique label id:\s(\d*)'
+START_OBJECT = '^;\s(?:start printing object|printing)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
 
 # Prusa Gcode Constants
-STOP_OBJECT_PRUSASLICER = '^; stop printing object'
+#'^; stop printing object'
 #WIPE_START -skip this part
 #WIPE_END
 # wipe off object
-FEATURE_PRUSASLICER = '^;TYPE:(.*)'
+#'^;TYPE:(.*)'
 WIPE_TOWER = 'Wipe tower'
 #TOOLCHANGE_START
 # prime tower line with old tool
@@ -57,7 +57,6 @@ WIPE_TOWER = 'Wipe tower'
 #; CP TOOLCHANGE END
 #;Type:Wipe tower
 # prime tower more lines
-START_OBJECT_PRUSASLICER = '^; printing object'
 
 LAYER_CHANGE = '^;\s?(?:CHANGE_LAYER|LAYER_CHANGE)'
 LAYER_Z_HEIGHT = '^;\s?(?:Z_HEIGHT|Z):\s?(\d*\.?\d*)' # Current object layer height including current layer height
@@ -104,6 +103,7 @@ class PrintState:
     self.primeTowerFeatures: list[Feature] = [] # The available prime tower features.
     self.stopPositions: list[int] = []
     self.toolchangeInsertionPoint: int = 0
+    self.featureWipeEndPrime: Position = None # prime values at end of wipe_end
 
     #Loop settings
     self.skipWrite: bool = False
@@ -134,6 +134,7 @@ class Feature:
     self.originalColor: int = -1
     self.printingColor: int = -1
     self.startPosition: Position = Position()
+    self.wipeStart: Feature = None
     self.wipeEnd: Feature = None
     self.skipType: SkipType = None
     #self.used: bool = False #flag to show prime tower has been used already
@@ -217,6 +218,8 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     printState.printingPeriodicColor = lastPrintState.printingPeriodicColor
     printState.layerStart = f.tell()
 
+    printState.featureWipeEndPrime = lastPrintState.featureWipeEndPrime
+
     # Find Z_HEIGHT value
     cl = f.readline()
     zHeightMatch = re.match(LAYER_Z_HEIGHT, cl)
@@ -268,7 +271,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     print(f"{len(printState.features)} printing features and {len(printState.primeTowerFeatures)} reusable prime towers found")
 
-    '''
+    
     #print rearranged features
     print(f"{len(printState.features)} printing features found")
     fi = 0
@@ -288,10 +291,10 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
         print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.end} printingColor:{feat.toolchange.printingColor}")
       if feat.wipeEnd:
         print(f"wipeEnd.start: {feat.wipeEnd.start}")
-    '''
+    
 
     #Debug breakpoint after layer feature cataloging
-    if printState.height == 0.6:
+    if printState.height == 4.8:
       0==0
 
     f.seek(cp, os.SEEK_SET)
@@ -328,13 +331,8 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # next layer marker
       changeLayerMatch = re.match(LAYER_CHANGE, cl)
 
-      # start marker for prime tower feature
-      #stopObjMatchBambu = re.match(STOP_OBJECT_BAMBUSTUDIO, cl)
-      #stopObjMatchPrusa = re.match(STOP_OBJECT_PRUSASLICER, cl)
-
       # start marker for non prime tower features
-      featureMatchBambu = re.match(FEATURE_BAMBUSTUDIO, cl)
-      featureMatchPrusa = re.match(FEATURE_PRUSASLICER, cl)
+      featureTypeMatch = re.match(FEATURE_TYPE, cl)
 
       # toolchange start/end and index
       univeralToolchangeStartMatch = re.match(UNIVERSAL_TOOLCHANGE_START, cl)
@@ -344,15 +342,11 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # wipe_end marker for normal printing features to skip
       wipeEndMatch = re.match(WIPE_END, cl)
 
-      # end marker for prime tower feature
-      #startObjMatchBambu = re.match(START_OBJECT_BAMBUSTUDIO, cl)
-      #startObjMatchPrusa = re.match(START_OBJECT_PRUSASLICER, cl)
-
       # end if we find next layer marker
       if changeLayerMatch:
         printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
         #print('got new layer at ',f.tell())
-        curFeature.end = f.tell()
+        curFeature.end = f.tell() - len(cl) - (len(le)-1)
         addFeatureToList(printState, curFeature)
         curFeature = None
         printState.layerEndOriginalColor = curOriginalColor
@@ -381,64 +375,29 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
             print(f"Unknown axis {axis} {axisValue} at {f.tell()}")
           m += 2
 
-      #if cl.startswith("; stop printing object"):
-      #  print(f"{stopObjMatchPrusa}")
-      #  print(f"found stop at {f.tell()}")
-
-      '''
-      # Find prime feature start
-      if stopObjMatchBambu or stopObjMatchPrusa:
-        # Look ahead one line to see if we find start object comment
-        # In that case, we are still in the current feature, it just covers two objects
-        cp = f.tell()
-        nl = f.readline()
-        f.seek(cp, os.SEEK_SET)
-        if re.match(START_OBJECT_BAMBUSTUDIO, nl) or re.match(START_OBJECT_PRUSASLICER, nl):
-          # Keep looking at current feature
-          continue
-        if curFeature and curFeature.featureType != POTENTIAL_PRIME_TOWER:
-          printState.features.append(curFeature)
-        curFeature = Feature()
-        curFeature.featureType = POTENTIAL_PRIME_TOWER
-        curFeature.start = f.tell() - len(cl) - (len(le)-1)
-        #print(f"found prime tower feature start (stop obj) at {f.tell() - len(cl)}")
-        continue
-      '''
-
       # Look for FEATURE to find feature type
-      if featureMatchBambu or featureMatchPrusa:
+      if featureTypeMatch:
         #print(f"found FEATURE match at {f.tell() - len(cl) - (len(le)-1)}")
 
         # Don't end prime tower if we found prime tower feature for Bambu
-        if curFeature and curFeature.featureType == PRIME_TOWER and featureMatchPrusa and featureMatchPrusa.groups()[0] == WIPE_TOWER:
+        if curFeature and curFeature.featureType == PRIME_TOWER and featureTypeMatch and (featureTypeMatch.groups()[0] == PRIME_TOWER or featureTypeMatch.groups()[0] == WIPE_TOWER):
           continue
-        '''
-        if curFeature and curFeature.featureType == POTENTIAL_PRIME_TOWER or curFeature and curFeature.featureType == PRIME_TOWER:
-          if (featureMatchBambu and featureMatchBambu.groups()[0] == PRIME_TOWER) or (featureMatchPrusa and featureMatchPrusa.groups()[0] == WIPE_TOWER):
-            print(f"turn {curFeature.featureType} to prime tower at {f.tell()}")
-            curFeature.featureType = PRIME_TOWER
-            continue
-        # save feature if not potential prime tower
-        '''
-        
+
         if curFeature:
-          curFeature.end = f.tell()
+          curFeature.end = f.tell() - len(cl) - (len(le)-1)
           addFeatureToList(printState, curFeature)
           curFeature = None
 
         # Create new feature 
-        if curFeature == None or featureMatchPrusa:
+        if curFeature == None:
           curFeature = Feature()
           curFeature.start = f.tell() - len(cl) - (len(le)-1)
           curFeature.startPosition = copy.copy(curStartPosition) # save last position state as start position for this feature
           curFeature.originalColor = curOriginalColor # save current original color as color for this feature
-        if featureMatchBambu:
-          curFeature.featureType = featureMatchBambu.groups()[0]
-        elif featureMatchPrusa:
-          if featureMatchPrusa.groups()[0] == WIPE_TOWER: #Rename wipe tower to prime tower
+        if featureTypeMatch:
+          curFeature.featureType = featureTypeMatch.groups()[0]
+          if featureTypeMatch.groups()[0] == WIPE_TOWER: #Rename wipe tower to prime tower
             curFeature.featureType = PRIME_TOWER
-          else:
-            curFeature.featureType = featureMatchPrusa.groups()[0]
 
         # mark feature as periodic color if needed
         if printState.isPeriodicLine and (curFeature.featureType in pcs[0].enabledFeatures or len(pcs[0].enabledFeatures) == 0):
@@ -471,9 +430,9 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # Look for UNIVERSAL_TOOLCHANGE_END if we already found the toolchange start
       elif univeralToolchangeEndMatch:
         if curFeature.toolchange == None:
-          print(f"toolchange end found before toolchange start at {f.tell()}")
+          print(f"toolchange end found before toolchange start at {f.tell()} set .end to {f.tell() - len(cl) - (len(le)-1)}")
           break
-        curFeature.toolchange.end = f.tell()
+        curFeature.toolchange.end = f.tell() - len(cl) - (len(le)-1)
         #print(f"found toolchange end at {curFeature.toolchange.end}")
         continue
 
@@ -514,7 +473,7 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
   insertedToolchangeTypeAtCurrentPosition = ToolchangeType.NONE
   if f.tell() == ps.toolchangeInsertionPoint:
     # Write out the current line read that is before the toolchange insert. We will be inserting toolchange code after this line. Temporarily set skipWrite to true for this loop
-    writeWithColorFilter(out, cl, loadedColors)
+    writeWithFilters(out, cl, loadedColors)
     #skipWrite = True
 
     # find the correct color for the toolchange
@@ -539,6 +498,7 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
       while f.tell() <= nextAvailablePrimeTowerFeature.end:
         cl = f.readline()
 
+        '''
         if skipWriteToolchange:
           # End skip on WIPE_END
           wipeEndMatch = re.match(WIPE_END, cl)
@@ -552,9 +512,13 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
           if wipeStartMatch:
             skipWriteToolchange = True
             wipeStartFoundCount += 1
+        '''
+
+
 
         # Skip WIPE_END of the inserted prime tower
         if nextAvailablePrimeTowerFeature.wipeEnd and f.tell() == nextAvailablePrimeTowerFeature.wipeEnd.start:
+          writeWithFilters(out, cl, loadedColors)
           out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
           out.write("; WIPE_END placeholder for BambuStudio Gcode Preview\n")
           out.write("; MFPP Original WIPE_END skipped\n")
@@ -562,7 +526,7 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
 
         if skipWriteToolchange == False:
           cl = substituteNewColor(cl, nextFeatureColor)
-          writeWithColorFilter(out, cl, loadedColors)
+          writeWithFilters(out, cl, loadedColors)
       f.seek(cp, os.SEEK_SET)
 
       print(f"added full toolchange {nextFeatureColor} --replacement--> {printingToolchangeNewColorIndex}")
@@ -677,12 +641,13 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
     prevFeatureSkip = True
 
   #stop any skip write when starting new feature
+  #re-enable extrude
   #print(f"End previous feature skip at feature {f.tell()}")
   ps.skipWrite = False
 
   insertedToolchangeTypeAtCurrentPosition = checkAndInsertToolchange(ps=ps, f=f, out=out, cl=cl, toolchangeBareFile=toolchangeBareFile, pcs=pcs)
   if insertedToolchangeTypeAtCurrentPosition == ToolchangeType.NONE and not prevFeatureSkip:
-    writeWithColorFilter(out, cl, loadedColors) # write current line read in (before seek to new feature location) before we restore position
+    writeWithFilters(out, cl, loadedColors) # write current line read in (before seek to new feature location) before we restore position
   ps.skipWriteForCurrentLine = True
   
   # Restore pre-feature position state before entering a new feature on periodic layer (but not if it is a prime tower on periodic line) or first feature on layer anywhere and prime if toolchange was inserted at start of feature.
@@ -703,11 +668,15 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
     if len(restoreCmd) > 2:
       out.write(f"{restoreCmd}\n")
     #out.write(f"G0 X{curFeature.startPosition.X} Y{curFeature.startPosition.Y} Z{curFeature.startPosition.Z} F{curFeature.startPosition.F}\n")
+    # Restore any prime needed
     extraPrimeGcode = None
     if insertedToolchangeTypeAtCurrentPosition == ToolchangeType.FULL:
       extraPrimeGcode = MINIMAL_TOOLCHANGE_PRIME
     elif insertedToolchangeTypeAtCurrentPosition == ToolchangeType.MINIMAL:
       extraPrimeGcode = FULL_TOOLCHANGE_PRIME
+    elif ps.featureWipeEndPrime:
+      extraPrimeGcode = f"G1 E{ps.featureWipeEndPrime.E} F{ps.featureWipeEndPrime.F}"
+      ps.featureWipeEndPrime = None # clear feature wipe end prime position which had prev feature wipe values
     elif gf == MARLIN_2_BAMBU_PRUSA_MARKED_GCODE:
       extraPrimeGcode = BAMBU_PRUSA_WIPE_END_PRIME
     if extraPrimeGcode:
@@ -717,6 +686,7 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
   if not ps.isPeriodicLine:
     return 
   
+  # We should not run into this older prime tower check because we separate prime towers into another feature list for periodic lines
   # If current feature is the prime tower with toolchange. Do not write prime tower. Skip past this prime tower feature. We may find use for prime tower later. If prime tower does not have toolchange, do not skip it.
   if curFeature.featureType == PRIME_TOWER and curFeature.toolchange:
     print(f"Current feature is prime tower (with toolchange) and it is available for use/relocation. Skipping prime tower.")
@@ -755,7 +725,7 @@ def currentPrintingColorIndexForColorIndex(colorIndex: int, lc: list[PrintColor]
   else:
     return colorIndex
 
-def writeWithColorFilter(out: typing.TextIO, cl: str, lc: list[PrintColor]):
+def writeWithFilters(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   cmdColorIndex = -1
   #print(f"writewithcolorfilter {cl}")
   #look for color specific matches to find the original color to check for replacement colors
@@ -797,23 +767,24 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
       while cl:
         cl = f.readline()
         #clsp = f.tell() - len(cl) - (len(lineEnding)-1) # read line start position
-        cp = f.tell() # position is start of next line after read line
+        cp = f.tell() # position is start of next line after read line. We define in lower scope function as needed for retention.
 
         currentPrint.skipWriteForCurrentLine = False
-
-        if f.tell() == 477411:
-          #print(f.tell())
-          0==0
-
-        if f.tell() >= 479645:
-          0==0
 
         # Update current print state variables
         updatePrintState(ps=currentPrint, cl=cl, sw=currentPrint.skipWrite)
       
-        # if no more features left in stack, check for new layers
+        
+
+        # If no more features left in stackcheck for new layers
         # Look for start of a layer CHANGE_LAYER
         if len(currentPrint.features) == 0:
+          # If no more features and we are at a stop position write the read line and jump to layer end (cursor at start of CHANGE_LAYER line). This is needed for the case where the last feature original position is not last in the original file.
+          if f.tell() in currentPrint.stopPositions and f.tell() != currentPrint.layerEnd:
+            writeWithFilters(out, cl, loadedColors)
+            f.seek(currentPrint.layerEnd, os.SEEK_SET)
+
+          # Save current pos for restore since findChangeLayer() will change pos
           cp = f.tell()
 
           if currentPrint.height == 2.0:
@@ -863,18 +834,24 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             currentPrint.skipWrite = True
             #print(f"start feature toolchange skip ")
 
-          if curFeature.wipeEnd and f.tell() == curFeature.wipeEnd.start and curFeature.featureType in WIPE_END_REMOVE_FEATURES:
-            writeWithColorFilter(out, cl, loadedColors)
+          if curFeature.wipeStart and f.tell() == curFeature.wipeStart.start:
+            0==0
+          
+          if curFeature.wipeEnd and f.tell() == curFeature.wipeEnd.start:
+            writeWithFilters(out, cl, loadedColors)
             #print(f"Skipping feature WIPE_END. Start skip at {f.tell()}")
             out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
             out.write("; WIPE_END placeholder for BambuStudio Gcode Preview\n")
             out.write("; MFPP Original WIPE_END skipped\n")
             currentPrint.skipWrite = True
+            # Reference original pos as last wipe end pos for next layer
+            currentPrint.featureWipeEndPrime = currentPrint.originalPosition
+            
 
         # Write current line
         if currentPrint.skipWrite == False and currentPrint.skipWriteForCurrentLine == False: 
           #out.write(cl)
-          writeWithColorFilter(out, cl, loadedColors)
+          writeWithFilters(out, cl, loadedColors)
 
         if currentPrint.skipWriteForCurrentLine == True:
           currentPrint.skipWrite = False
