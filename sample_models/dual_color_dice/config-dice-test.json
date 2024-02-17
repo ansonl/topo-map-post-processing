@@ -7,7 +7,7 @@
   "realWorldIsolineElevationEnd": 5000,
   "modelIsolineHeight": 0.5,
   "isolineColorIndex": 2,
-  "isolineColorFeatureTypes": ["Perimeter", "External perimeter"],
+  "isolineColorFeatureTypes": ["Outer wall", "Inner wall", "External perimeter", "Perimeter"],
   "realWorldElevationReplacementColorStart": 3650,
   "realWorldElevationReplacementColorEnd": 9000,
   "replacementColorIndex": 3,
