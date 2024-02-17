@@ -27,7 +27,12 @@ MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
 FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
 PRIME_TOWER = 'Prime tower'
 WIPE_TOWER = 'Wipe tower'
+# MFPP placeholders
 TOOLCHANGE = 'Toolchange'
+UNKNOWN_CONTINUED = 'Unknown continued'
+
+# LINE_WIDTH tag
+LINE_WIDTH = '^;\s?(?:LINE_WIDTH|WIDTH):'
 
 # Slicer toolchange start
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
@@ -40,6 +45,7 @@ M621 = '^M621 S(\d*)A'
 # Feature Wipe sections
 WIPE_START = '^;\s?WIPE_START'
 WIPE_END = '^;\s?WIPE_END'
+RETAIN_WIPE_END_FEATURE_TYPES = ['Internal infill']
 
 # Start and stop individual object
 #STOP_OBJECT = '^;\s(?:stop printing object)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
@@ -80,6 +86,8 @@ class PrintState:
     self.previousLayerHeight: float = 0
     self.layerStart: int = 0
     self.layerEnd: int = 0
+    self.lastFeature: Feature = None
+    self.prevLayerLastFeature: Feature = None
 
     # Color info
     self.originalColor: int = -1 # last color changed to in original print at the start of the layer
@@ -203,6 +211,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     printState.printingPeriodicColor = lastPrintState.printingPeriodicColor
     printState.layerStart = f.tell()
 
+    printState.prevLayerLastFeature = lastPrintState.lastFeature
     printState.featureWipeEndPrime = lastPrintState.featureWipeEndPrime
 
     # Find Z_HEIGHT value
@@ -236,6 +245,10 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     cp = f.tell()  
     findLayerFeatures(f=f, gf=gf, printState=printState, pcs=pcs, le=le)
+
+    # Save reference to last original feature in case it originally continues to next layer
+    if len(printState.features) > 0:
+      printState.lastFeature = printState.features[len(printState.features)-1]
 
     #rearrange features
     if printState.isPeriodicLine:
@@ -279,7 +292,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     
 
     #Debug breakpoint after layer feature cataloging
-    if printState.height == 0.6:
+    if printState.height == 7.8:
       0==0
 
     f.seek(cp, os.SEEK_SET)
@@ -311,34 +324,9 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       else:
         ps.features.append(cf)
 
-    while cl:
-      cl = f.readline()
-      # next layer marker
-      changeLayerMatch = re.match(LAYER_CHANGE, cl)
-
-      # start marker for non prime tower features
-      featureTypeMatch = re.match(FEATURE_TYPE, cl)
-
-      # toolchange start/end and index
-      univeralToolchangeStartMatch = re.match(UNIVERSAL_TOOLCHANGE_START, cl)
-      toolchangeMatch = re.match(TOOLCHANGE_T, cl)
-      univeralToolchangeEndMatch = re.match(UNIVERSAL_TOOLCHANGE_END, cl)
-
-      # wipe_end marker for normal printing features to skip
-      wipeEndMatch = re.match(WIPE_END, cl)
-
-      # end if we find next layer marker
-      if changeLayerMatch:
-        printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
-        #print('got new layer at ',f.tell())
-        curFeature.end = f.tell() - len(cl) - (len(le)-1)
-        addFeatureToList(printState, curFeature)
-        curFeature = None
-        printState.layerEndOriginalColor = curOriginalColor
-        break
-      
+    def checkAndRecordLastPosition(input: str):
       # look for movement gcode and record last position before entering a feature
-      movementMatch = re.match(MOVEMENT_G, cl)
+      movementMatch = re.match(MOVEMENT_G, input)
       if movementMatch:
         m = 0
         while m+1 < len(movementMatch.groups()):
@@ -360,8 +348,68 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
             print(f"Unknown axis {axis} {axisValue} at {f.tell()}")
           m += 2
 
+    # Enable after lookahead if a feature spans a layer change
+    useFirstLineWidthAsFeature = False
+
+    while cl:
+      cl = f.readline()
+      # next layer marker
+      changeLayerMatch = re.match(LAYER_CHANGE, cl)
+
+      # end of layer_change
+      layerChangeEndMatch = re.match(UNIVERSAL_LAYER_CHANGE_END, cl)
+
+      # start marker for non prime tower features
+      featureTypeMatch = re.match(FEATURE_TYPE, cl)
+
+      lineWidthMatch = None
+      if useFirstLineWidthAsFeature:
+        lineWidthMatch = re.match(LINE_WIDTH, cl)
+
+      # toolchange start/end and index
+      univeralToolchangeStartMatch = re.match(UNIVERSAL_TOOLCHANGE_START, cl)
+      toolchangeMatch = re.match(TOOLCHANGE_T, cl)
+      univeralToolchangeEndMatch = re.match(UNIVERSAL_TOOLCHANGE_END, cl)
+
+      # wipe_end marker for normal printing features to skip
+      wipeEndMatch = re.match(WIPE_END, cl)
+
+      # end if we find next layer marker
+      if changeLayerMatch:
+        printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
+        #print('got new layer at ',f.tell())
+        curFeature.end = f.tell() - len(cl) - (len(le)-1)
+        addFeatureToList(printState, curFeature)
+        curFeature = None
+        printState.layerEndOriginalColor = curOriginalColor
+        break
+      
+      checkAndRecordLastPosition(input=cl)
+
+      # If UNIVERSAL LAYER CHANGE END found first, look ahead to see if a new feature is the first thing on this layer or previous feature is continued.
+      if len(printState.features) == 0 and layerChangeEndMatch:
+        cp = f.tell()
+        lookaheadLines = 9
+        foundFeatureInLookahead = False
+        for i in range(lookaheadLines):
+          fl = f.readline()
+          if re.match(FEATURE_TYPE, fl):
+            foundFeatureInLookahead = True
+            break
+          if re.match(LINE_WIDTH, fl): #secondary check for LINE_WIDTH/WIDTH to look for continued feature
+            useFirstLineWidthAsFeature = True
+            break
+        f.seek(cp, os.SEEK_SET)
+        if foundFeatureInLookahead or useFirstLineWidthAsFeature:
+          # a new feature is found soon so continue looking for features like normal
+          # a line width tag was found so look for line width tag as if it is a feature tag
+          continue
+        else:
+          print(f'Found no feature or width tag in lookahead of {lookaheadLines} at start of layer at {f.tell()}')
+          break
+
       # Look for FEATURE to find feature type
-      if featureTypeMatch:
+      if featureTypeMatch or (len(printState.features) == 0 and useFirstLineWidthAsFeature and lineWidthMatch):
         #print(f"found FEATURE match at {f.tell() - len(cl) - (len(le)-1)}")
 
         # Don't end prime tower if we found prime tower feature for Bambu
@@ -383,6 +431,14 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           curFeature.featureType = featureTypeMatch.groups()[0]
           if featureTypeMatch.groups()[0] == WIPE_TOWER: #Rename wipe tower to prime tower
             curFeature.featureType = PRIME_TOWER
+        # If not a feature Type Match, try to see if line width matches
+        elif lineWidthMatch:
+          useFirstLineWidthAsFeature = False
+          if printState.prevLayerLastFeature:
+            curFeature.featureType = printState.prevLayerLastFeature.featureType
+            printState.prevLayerLastFeature = None # clear reference to prev layer last feature
+          else:
+            curFeature.featureType = UNKNOWN_CONTINUED
 
         # mark feature as periodic color if needed
         if printState.isPeriodicLine and (curFeature.featureType in pcs[0].enabledFeatures or len(pcs[0].enabledFeatures) == 0):
@@ -819,7 +875,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             currentPrint.skipWrite = True
             #print(f"start feature toolchange skip ")
           
-          if curFeature.wipeEnd and f.tell() == curFeature.wipeEnd.start:
+          if curFeature.wipeEnd and f.tell() == curFeature.wipeEnd.start and curFeature.featureType not in RETAIN_WIPE_END_FEATURE_TYPES:
             writeWithFilters(out, cl, loadedColors)
             #print(f"Skipping feature WIPE_END. Start skip at {f.tell()}")
             out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
