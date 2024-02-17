@@ -14,7 +14,7 @@ Only one isoline interval and colored elevation range is exposed at the moment b
 
 Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer and Bambu Studio default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be enabled.
 
-If you would like support for your printer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
+If you would like support for your printer or slicer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
 
 ## Getting Started
 
@@ -26,21 +26,23 @@ Set up your slicer and printer for MFPP by following the steps on every page bel
 
 - [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
-After following the set up, download the [latest release of MFPP](https://github.com/ansonl/topo-map-post-processing/releases) and run it.
+After following all the above set up pages, download the [latest release of MFPP](https://github.com/ansonl/topo-map-post-processing/releases) and run `gui.exe`.
 
-If a release of MFPP has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.exe`.
-
-## Bug Reports
-
-Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFPP configuration JSON, and before/after G-code.
+If a release of MFPP has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.py`.
 
 ## Notes
+
+🚧 **Issue:** Color change may not happen on layers where a feature/line type spans a layer boundary. the console log will show 0 features found on that layer. The lookahead distance can be increased to find the next feature. File a bug report with your G-code file so the proper lookahead distance can be determined.
 
 🚧 **Issue:** Support and Bridge features are not explicitly prioritized to pprint first. TBD to prioritize them.
 
 ✅ **Issue:** Mixed OS line endings in the same file will lead to G-code errors. MFPP tries to auto detect the line ending used with first line ending found.
 
 **Solution:** Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers)
+
+## Bug Reports
+
+Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFPP configuration JSON, before/after G-code, and console log.
 
 ## License and Disclaimer
 

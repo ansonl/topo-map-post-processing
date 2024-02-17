@@ -23,6 +23,11 @@ FULL_TOOLCHANGE_PRIME = 'G1 E.8 F1800'
 MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
 #FEATURE_START_DEFAULT_PRIME = 'G1 E.2 F1500'
 
+# Filament End gcode tag - if layer starts with UNIVERSAL_TOOLCHANGE_START instead of m204 or feature. Filament end gcode appears right before UNIVERSAL_TOOLCHANGE_START
+FILAMENT_END_GCODE = '^;\s?filament end gcode'
+# M204 S
+M204 = '^M204\sS(?:\d*)'
+
 # Feature/Line Type
 FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
 PRIME_TOWER = 'Prime tower'
@@ -240,7 +245,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     print(f"Is periodic line {printState.isPeriodicLine}")
 
     #Debug breakpoint before layer feature cataloging
-    if printState.height == 0.6:
+    if printState.height == 12.0:
       0==0
 
     cp = f.tell()  
@@ -292,7 +297,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     
 
     #Debug breakpoint after layer feature cataloging
-    if printState.height == 7.8:
+    if printState.height == 10.4:
       0==0
 
     f.seek(cp, os.SEEK_SET)
@@ -349,7 +354,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           m += 2
 
     # Enable after lookahead if a feature spans a layer change
-    useFirstLineWidthAsFeature = False
+    useFirstSpecialGcodeAsFeature = None
 
     while cl:
       cl = f.readline()
@@ -362,9 +367,10 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # start marker for non prime tower features
       featureTypeMatch = re.match(FEATURE_TYPE, cl)
 
-      lineWidthMatch = None
-      if useFirstLineWidthAsFeature:
-        lineWidthMatch = re.match(LINE_WIDTH, cl)
+      # FILAMENT_END_GCODE signals TC after layer_change or M204 S signals start of printing moves after layer_change. FILAMENT_END_GCODE comes before the early toolchange start. M204 S may come on line before FEATURE if FEATURE exists at start
+      specialGcodeMatch = None
+      if useFirstSpecialGcodeAsFeature:
+        specialGcodeMatch = re.match(useFirstSpecialGcodeAsFeature, cl)
 
       # toolchange start/end and index
       univeralToolchangeStartMatch = re.match(UNIVERSAL_TOOLCHANGE_START, cl)
@@ -389,27 +395,46 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # If UNIVERSAL LAYER CHANGE END found first, look ahead to see if a new feature is the first thing on this layer or previous feature is continued.
       if len(printState.features) == 0 and layerChangeEndMatch:
         cp = f.tell()
-        lookaheadLines = 9
+        lookaheadLines = 200
         foundFeatureInLookahead = False
-        for i in range(lookaheadLines):
+        i = 0
+        fl = True
+        while fl:
           fl = f.readline()
+          i += 1
           if re.match(FEATURE_TYPE, fl):
             foundFeatureInLookahead = True
+            print(f'found feature during lookahead line distance {i} {f.tell()}')
             break
-          if re.match(LINE_WIDTH, fl): #secondary check for LINE_WIDTH/WIDTH to look for continued feature
-            useFirstLineWidthAsFeature = True
+          if re.match(M204, fl): #secondary check for M204 S to look for continued feature
+            print(f'found M204 S during lookahead line distance {i} {f.tell()}')
+            fl = f.readline()
+            # If no FEATURE found right after M204, treat M204 as the first feature
+            if re.match(FEATURE_TYPE, fl):
+              foundFeatureInLookahead = True
+              print(f'found feature after M204 S during lookahead line distance {i} {f.tell()}')
+              break
+            else:
+              useFirstSpecialGcodeAsFeature = M204
+            break
+          if re.match(FILAMENT_END_GCODE, fl):
+            print(f'found FILAMENT_END_GCODE during lookahead line distance {i} {f.tell()}')
+            useFirstSpecialGcodeAsFeature = FILAMENT_END_GCODE
+            break
+          if re.match(LAYER_CHANGE, fl):
+            #No feature found before next layer!
             break
         f.seek(cp, os.SEEK_SET)
-        if foundFeatureInLookahead or useFirstLineWidthAsFeature:
+        if foundFeatureInLookahead or useFirstSpecialGcodeAsFeature:
           # a new feature is found soon so continue looking for features like normal
           # a line width tag was found so look for line width tag as if it is a feature tag
           continue
         else:
-          print(f'Found no feature or width tag in lookahead of {lookaheadLines} at start of layer at {f.tell()}')
+          print(f'Found no feature or M204 tag in lookahead of {lookaheadLines} at start of layer at {f.tell()}')
           break
 
       # Look for FEATURE to find feature type
-      if featureTypeMatch or (len(printState.features) == 0 and useFirstLineWidthAsFeature and lineWidthMatch):
+      if featureTypeMatch or (len(printState.features) == 0 and useFirstSpecialGcodeAsFeature and specialGcodeMatch):
         #print(f"found FEATURE match at {f.tell() - len(cl) - (len(le)-1)}")
 
         # Don't end prime tower if we found prime tower feature for Bambu
@@ -432,8 +457,8 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           if featureTypeMatch.groups()[0] == WIPE_TOWER: #Rename wipe tower to prime tower
             curFeature.featureType = PRIME_TOWER
         # If not a feature Type Match, try to see if line width matches
-        elif lineWidthMatch:
-          useFirstLineWidthAsFeature = False
+        elif specialGcodeMatch:
+          useFirstSpecialGcodeAsFeature = False
           if printState.prevLayerLastFeature:
             curFeature.featureType = printState.prevLayerLastFeature.featureType
             printState.prevLayerLastFeature = None # clear reference to prev layer last feature
@@ -848,7 +873,7 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
                 currentPrint.toolchangeInsertionPoint = currentPrint.layerEnd
 
             item = StatusQueueItem()
-            item.status = f"Current Height {currentPrint.height}"
+            item.status = f"Current Layer {currentPrint.height}"
             item.progress = cp/lp * 100
             statusQueue.put(item=item)
             # join to debug thread queue reading
