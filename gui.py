@@ -15,11 +15,11 @@ import enum
 from map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = True
+TEST_MODE = False
 
 # UI Constants
 APP_NAME = 'Map Features G-code Post Processing'
-APP_VERSION = '1.2'
+APP_VERSION = '1.5'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -36,9 +36,9 @@ MODEL_SEA_LEVEL_BASE_THICKNESS = 'modelSeaLevelBaseThickness'
 REAL_WORLD_ISOLINE_ELEVATION_INTERVAL = 'realWorldIsolineElevationInterval'
 REAL_WORLD_ISOLINE_ELEVATION_START = 'realWorldIsolineElevationStart'
 REAL_WORLD_ISOLINE_ELEVATION_END = 'realWorldIsolineElevationEnd'
-MODEL_ISOLINE_HEIGHT = 'modelIsolineHeight' #in model units
+MODEL_ISOLINE_HEIGHT = 'modelIsolineHeight' #in model units (mm)
 ISOLINE_COLOR_INDEX = 'isolineColorIndex'
-ISOLINE_ENABLED_FEATURES = 'isolineFeatures'
+ISOLINE_ENABLED_FEATURES = 'isolineColorFeatureTypes'
 
 REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START = 'realWorldElevationReplacementColorStart'
 REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END = 'realWorldElevationReplacementColorEnd'
@@ -87,7 +87,7 @@ def select_file(filetypes:[tuple]):
 
   filename = fd.askopenfilename(
     title='Open a file',
-    initialdir='/',
+    initialdir='./',
     filetypes=filetypes)
   
   return filename
@@ -99,7 +99,7 @@ def truncateMiddleLength(s, length):
 
 def addExportToFilename(fn):
   fnSplit = os.path.splitext(fn)
-  exportFn = f"{fnSplit[0]}-export"
+  exportFn = f"{fnSplit[0]}-MFPP-export"
   if len(fnSplit) > 1:
     exportFn += fnSplit[1]
   return exportFn
@@ -298,15 +298,19 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          userOptions[IMPORT_GCODE_FILENAME] = 'dice_sidebyside_prime_prusa.gcode'
-          userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-prusaslicer.json'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
-
-          #userOptions[IMPORT_GCODE_FILENAME] = 'dice_sidebyside_prime.gcode'
-          #userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice.json'
+          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
+          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
+          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
+          userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
           #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
-
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
+
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA-p4/ca_p4.gcode'
+          userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA-p4/config-usaofplastic-200zperc.json'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
+          userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
           '''
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)

@@ -14,6 +14,12 @@ Only one isoline interval and colored elevation range is exposed at the moment b
 
 Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer and Bambu Studio default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be enabled.
 
+| Slicer | Tested Version |
+| --- | --- |
+| PrusaSlicer | 2.7.1 |
+| Bambu Studio | 1.8.2.56 |
+| Cura | Untested |
+
 If you would like support for your printer or slicer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
 
 ## Getting Started
@@ -32,13 +38,11 @@ If a release of MFPP has not been built for your OS, you can [download](https://
 
 ## Notes
 
-🚧 **Issue:** Color change may not happen on layers where a feature/line type spans a layer boundary. the console log will show 0 features found on that layer. The lookahead distance can be increased to find the next feature. File a bug report with your G-code file so the proper lookahead distance can be determined.
-
-🚧 **Issue:** Support and Bridge features are not explicitly prioritized to pprint first. TBD to prioritize them.
-
-✅ **Issue:** Mixed OS line endings in the same file will lead to G-code errors. MFPP tries to auto detect the line ending used with first line ending found.
-
-**Solution:** Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers)
+| 🚧 Issue | Solution |
+| --- | --- |
+| Color change may not happen on layers where a feature/line type spans a layer boundary. | The console log will show 0 or low amount of features found on that layer relative to other layers. Some slicers will continue features/lines between layers which makes detecting features/lines less reliable. |
+| Support and Bridge features are not explicitly prioritized to pprint first.  | I may prioritize them in the future. Add an issue on your use case for this. |
+| Mixed OS line endings in the same file will lead to G-code errors. MFPP tries to auto detect the line ending used with first line ending found. | Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers) |
 
 ## Bug Reports
 

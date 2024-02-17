@@ -23,10 +23,12 @@ FULL_TOOLCHANGE_PRIME = 'G1 E.8 F1800'
 MINIMAL_TOOLCHANGE_PRIME = 'G1 E2 F1800'
 #FEATURE_START_DEFAULT_PRIME = 'G1 E.2 F1500'
 
-# Filament End gcode tag - if layer starts with UNIVERSAL_TOOLCHANGE_START instead of m204 or feature. Filament end gcode appears right before UNIVERSAL_TOOLCHANGE_START
+# Filament End gcode tag - if layer starts with UNIVERSAL_TOOLCHANGE_START instead of m204 or feature. Filament end gcode appears right before UNIVERSAL_TOOLCHANGE_START LINE_WIDTH tag usually appears after FEATURE but appears appear layer_change if continuing feature.
 FILAMENT_END_GCODE = '^;\s?filament end gcode'
 # M204 S
 M204 = '^M204\sS(?:\d*)'
+# LINE_WIDTH tag
+LINE_WIDTH = '^;\s?(?:LINE_WIDTH|WIDTH):'
 
 # Feature/Line Type
 FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
@@ -36,8 +38,7 @@ WIPE_TOWER = 'Wipe tower'
 TOOLCHANGE = 'Toolchange'
 UNKNOWN_CONTINUED = 'Unknown continued'
 
-# LINE_WIDTH tag
-LINE_WIDTH = '^;\s?(?:LINE_WIDTH|WIDTH):'
+
 
 # Slicer toolchange start
 TOOLCHANGE_START = '^; CP TOOLCHANGE START'
@@ -297,7 +298,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     
 
     #Debug breakpoint after layer feature cataloging
-    if printState.height == 10.4:
+    if printState.height == 7.8:
       0==0
 
     f.seek(cp, os.SEEK_SET)
@@ -420,6 +421,10 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
           if re.match(FILAMENT_END_GCODE, fl):
             print(f'found FILAMENT_END_GCODE during lookahead line distance {i} {f.tell()}')
             useFirstSpecialGcodeAsFeature = FILAMENT_END_GCODE
+            break
+          if re.match(LINE_WIDTH, fl):
+            print(f'found LINE_WIDTH during lookahead line distance {i} {f.tell()}')
+            useFirstSpecialGcodeAsFeature = LINE_WIDTH
             break
           if re.match(LAYER_CHANGE, fl):
             #No feature found before next layer!
