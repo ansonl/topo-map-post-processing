@@ -18,7 +18,7 @@ Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamak
 | --- | --- |
 | PrusaSlicer | 2.7.1 |
 | Bambu Studio | 1.8.2.56 |
-| Cura | Untested |
+| Cura | Looking for testers |
 
 If you would like support for your printer or slicer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
 
