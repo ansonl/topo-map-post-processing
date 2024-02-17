@@ -30,7 +30,7 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | `realWorldIsolineElevationEnd` | `float` | 1 | Isoline ending elevation in real world units. |
 | `modelIsolineHeight` | `float` | 1 | Isoline display height in model units. |
 | `isolineColorIndex` | `integer` | 1 | Isoline filament/color loaded position. Recommended index is 2 (third slot). |
-| `isolineFeatures` | `[string]` | ≥0 | List of printing object feature types (extrusion roles) to recolor at isoline elevations. Empty array will recolor all feature types. |
+| `isolineColorFeatureTypes` | `[string]` | ≥0 | List of printing object feature/line types (extrusion roles) to recolor at isoline elevations. Empty array will recolor all feature types. |
 
 #### Feature Types (Extrusion Roles)
 

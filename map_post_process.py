@@ -3,12 +3,10 @@ import re, os, typing, queue, time, datetime, math, enum, copy
 # Gcode flavors
 MARLIN_2_BAMBU_PRUSA_MARKED_GCODE = 'marlin2_bambu_prusa_markedtoolchangegcode'
 
-# Universal MFPP Tag Gcode Constants
+# Universal MFPP Gcode Tags
 UNIVERSAL_TOOLCHANGE_START = '^; MFPP TOOLCHANGE START'
 UNIVERSAL_TOOLCHANGE_END = '^; MFPP TOOLCHANGE END'
 UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
-
-#PERIODIC_LINE_FEATURES = ["Outer wall", "Inner wall"]
 
 # Gcode Regex and Constants
 
@@ -47,53 +45,8 @@ WIPE_END = '^;\s?WIPE_END'
 #STOP_OBJECT = '^;\s(?:stop printing object)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
 #START_OBJECT = '^;\s(?:start printing object|printing)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
 
-
-
 CHANGE_LAYER_CURA = '^;LAYER:\d*'
 FEATURE_CURA = '^;TYPE:(.*)'
-
-
-# Bambu Gcode Order
-#FEATURE_TYPE = '^;\s?(?:FEATURE|TYPE):\s?(.*)'
-#FEATURE_END_BAMBUSTUDIO = '^; filament end gcode' #feature ends when this gcode is found or new feature is found
-#PRIME_TOWER = 'Prime tower'
-#TOOLCHANGE = 'Toolchange'
-#TOOLCHANGE_START = '^; CP TOOLCHANGE START'
-#WIPE_START = '^;\s?WIPE_START'
-#WIPE_END = '^;\s?WIPE_END'
-# Toolchange (change_filament) start
-#G392 = '^G392 S(\d*)' #G392 only for A1?
-#M620 = '^M620 S(\d*)A'
-# Toolchange core movement actually starts after spiral lift up. Spiral lift is useful if doing prime tower only.
-#WIPE_SPIRAL_LIFT = '^G2 Z\d*\.?\d* I\d*\.?\d* J\d*\.?\d* P\d*\.?\d* F\d*\.?\d* ; spiral lift a little from second lift'
-#TOOLCHANGE_T = '^T(?!255$|1000|1100$)(\d*)' # Do not match T255 or T1000 which are nonstandard by Bambu
-# Prime tower printing actually starts after M621
-#M621 = '^M621 S(\d*)A'
-#; CP TOOLCHANGE WIPE
-# wipe/prime tower here
-#; WIPE_TOWER_END
-#G92 E0
-#; CP TOOLCHANGE END
-#START_OBJECT = '^;\s(?:start printing object|printing)\s?(?:, unique label|.*)\sid:?\s?(\d*)'
-
-# Prusa Gcode Order
-#'^; stop printing object'
-#WIPE_START -skip this part
-#WIPE_END
-# wipe off object
-#'^;TYPE:(.*)'
-#WIPE_TOWER = 'Wipe tower'
-#TOOLCHANGE_START
-# prime tower line with old tool
-#UNIVERSAL_TOOLCHANGE_START
-#UNIVERSAL_TOOLCHANGE_END
-#; CP TOOLCHANGE WIPE
-# prime tower lines in new tool
-#; CP TOOLCHANGE END
-#;Type:Wipe tower
-# prime tower more lines
-
-
 
 class StatusQueueItem:
   def __init__(self):
@@ -108,6 +61,16 @@ class Position:
     self.Z: float
     self.E: float
     self.F: float
+
+class ToolchangeType(enum.Enum):
+  NONE = enum.auto()
+  MINIMAL = enum.auto()
+  FULL = enum.auto()
+
+# Reason for skip when looping that is set when first starting a feature
+class SkipType(enum.Enum):
+  PRIME_TOWER_FEATURE = enum.auto()
+  FEATURE_ORIG_TOOLCHANGE_AND_WIPE_END = enum.auto()
 
 # State of current Print FILE
 class PrintState:
@@ -145,15 +108,6 @@ class PrintState:
     #self.skipOriginalPrimeTowerAndToolchangeOnLayer: bool = False
     #self.skipOriginalToolchangeOnLayer: bool = False
 
-class PeriodicColor:
-  def __init__(self, colorIndex = -1, startHeight = -1, endHeight = -1, height = -1, period = -1, enabledFeatures=[]):
-    self.colorIndex: int = colorIndex
-    self.startHeight: float = startHeight
-    self.endHeight: float = endHeight
-    self.height: float = height
-    self.period: float = period
-    self.enabledFeatures: list[str] = enabledFeatures
-
 class Feature:
   def __init__(self):
     self.featureType: str = None
@@ -168,7 +122,16 @@ class Feature:
     self.wipeEnd: Feature = None
     self.skipType: SkipType = None
     #self.used: bool = False #flag to show prime tower has been used already
-    
+
+class PeriodicColor:
+  def __init__(self, colorIndex = -1, startHeight = -1, endHeight = -1, height = -1, period = -1, enabledFeatures=[]):
+    self.colorIndex: int = colorIndex
+    self.startHeight: float = startHeight
+    self.endHeight: float = endHeight
+    self.height: float = height
+    self.period: float = period
+    self.enabledFeatures: list[str] = enabledFeatures
+
 class PrintColor:
   def __init__(self, index=-1, replacementColorIndex=-1, humanColor=None):
     self.index: int = index
@@ -181,7 +144,6 @@ loadedColors: list[PrintColor] = [
   PrintColor(2, -1, 'Isoline Color'),
   PrintColor(3, -1, 'High Elevation Color')
 ]
-
 class ReplacementColorAtHeight:
   def __init__(self, colorIndex, originalColorIndex, startHeight, endHeight):
     self.colorIndex: int = colorIndex
@@ -189,14 +151,7 @@ class ReplacementColorAtHeight:
     self.startHeight: float = startHeight
     self.endHeight: float = endHeight
 
-class ToolchangeType(enum.Enum):
-  NONE = enum.auto()
-  MINIMAL = enum.auto()
-  FULL = enum.auto()
 
-class SkipType(enum.Enum):
-  PRIME_TOWER_FEATURE = enum.auto()
-  FEATURE_ORIG_TOOLCHANGE_AND_WIPE_END = enum.auto()
 
 
 def createIsoline(modelToRealWorldDefaultUnits: float, modelOneToNVerticalScale: float, modelSeaLevelBaseThickness: float, realWorldIsolineElevationInterval: float, realWorldIsolineElevationStart: float, realWorldIsolineElevationEnd: float, modelIsolineHeight: float, colorIndex: int, enabledFeatures: list[str]):
@@ -324,7 +279,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     
 
     #Debug breakpoint after layer feature cataloging
-    if printState.height == 4.8:
+    if printState.height == 0.6:
       0==0
 
     f.seek(cp, os.SEEK_SET)
@@ -348,7 +303,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
     curOriginalColor = printState.originalColor # original color at start of layer
 
     def addFeatureToList(ps: PrintState, cf: Feature):
-      if cf.toolchange: # only add prime tower to available prime tower list if it has a toolchange
+      if cf.featureType == PRIME_TOWER and cf.toolchange: # only add prime tower to available prime tower list if it has a toolchange
         if ps.isPeriodicLine:
           ps.primeTowerFeatures.append(cf)
         else:
@@ -552,7 +507,7 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
           out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
           out.write("; WIPE_END placeholder for BambuStudio Gcode Preview\n")
           out.write("; MFPP Original WIPE_END skipped\n")
-          continue
+          skipWriteToolchange = True
 
         if skipWriteToolchange == False:
           cl = substituteNewColor(cl, nextFeatureColor)
@@ -863,9 +818,6 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             out.write("; MFPP Original Feature Toolchange skipped\n")
             currentPrint.skipWrite = True
             #print(f"start feature toolchange skip ")
-
-          if curFeature.wipeStart and f.tell() == curFeature.wipeStart.start:
-            0==0
           
           if curFeature.wipeEnd and f.tell() == curFeature.wipeEnd.start:
             writeWithFilters(out, cl, loadedColors)
