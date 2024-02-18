@@ -62,7 +62,8 @@ FEATURE_CURA = '^;TYPE:(.*)'
 
 class StatusQueueItem:
   def __init__(self):
-    self.status = None
+    self.statusLeft = None
+    self.statusRight = None
     self.progress = None
 
 # Position
@@ -244,12 +245,9 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
     printState.isPeriodicLine = shouldLayerBePeriodicLine(printState, pcs[0]) if len(pcs) > 0 else False
     print(f"Is printing periodic color {printState.printingPeriodicColor}")
     print(f"Is periodic line {printState.isPeriodicLine}")
+    
 
-    #Debug breakpoint before layer feature cataloging
-    if printState.height == 12.0:
-      0==0
-
-    cp = f.tell()  
+    '''
     findLayerFeatures(f=f, gf=gf, printState=printState, pcs=pcs, le=le)
 
     # Save reference to last original feature in case it originally continues to next layer
@@ -302,15 +300,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
       0==0
 
     f.seek(cp, os.SEEK_SET)
-
-    firstNonePrimeTowerFeatureIndex = 0
-    while firstNonePrimeTowerFeatureIndex < len(printState.features):
-      if printState.features[firstNonePrimeTowerFeatureIndex].featureType != PRIME_TOWER:
-        break
-      firstNonePrimeTowerFeatureIndex += 1
-    if firstNonePrimeTowerFeatureIndex == len(printState.features):
-      firstNonePrimeTowerFeatureIndex = -1
-
+    '''
     return printState
   return None
 
@@ -538,6 +528,55 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       print(f"reached end of file at {f.tell()}")
       curFeature.end = f.tell()
       addFeatureToList(printState, curFeature)
+
+def reorderFeatures(ps: PrintState):
+  #Debug breakpoint before layer feature cataloging
+  if ps.height == 12.0:
+    0==0
+
+  #rearrange features
+  if ps.isPeriodicLine:
+    insertIdx = 0
+    featureIdx = 0
+    while featureIdx < len(ps.features):
+      if ps.features[featureIdx].isPeriodicColor:
+        if insertIdx != featureIdx:
+          ps.features.insert(insertIdx, ps.features.pop(featureIdx))
+        insertIdx += 1
+      featureIdx += 1
+
+  for feat in ps.features:
+    ps.stopPositions.append(feat.start)
+  for feat in ps.primeTowerFeatures:
+    ps.stopPositions.append(feat.start)
+  ps.stopPositions.append(ps.layerEnd) #add layer end as a stop position
+
+  print(f"{len(ps.features)} printing features and {len(ps.primeTowerFeatures)} reusable prime towers found")
+
+  
+  #print rearranged features
+  print(f"{len(ps.features)} printing features found")
+  fi = 0
+  for feat in ps.features:
+    print(f"{fi} {feat.featureType} start: {feat.start} end: {feat.end} originalcolor: {feat.originalColor} isPeriodicColor:{feat.isPeriodicColor} printingColor:{feat.printingColor}")
+    if feat.toolchange:
+      print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.end} printingColor:{feat.toolchange.printingColor}")
+    if feat.wipeEnd:
+      print(f"wipeEnd.start: {feat.wipeEnd.start}")
+    fi += 1
+
+  #print prime tower features (only filled when periodic layer)
+  print(f"{len(ps.primeTowerFeatures)} prime tower features found")
+  for feat in ps.primeTowerFeatures:
+    print(f"{feat.featureType} start: {feat.start} end: {feat.end} originalcolor: {feat.originalColor} isPeriodicColor:{feat.isPeriodicColor} printingColor:{feat.printingColor}")
+    if feat.toolchange:
+      print(f"toolchange.start: {feat.toolchange.start} end: {feat.toolchange.end} printingColor:{feat.toolchange.printingColor}")
+    if feat.wipeEnd:
+      print(f"wipeEnd.start: {feat.wipeEnd.start}")
+  
+  #Debug breakpoint after layer feature cataloging
+  if ps.height == 7.8:
+    0==0
 
 def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextIO, cl: str, toolchangeBareFile: str, pcs: list[PeriodicColor]) -> ToolchangeType:
   # Check if we are at toolchange insertion point. This point could be active when no more features are remaining and before any features are found (TC can be inserted after change_layer found)
@@ -864,6 +903,19 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           foundNewLayer = findChangeLayer(f,lastPrintState=currentPrint, gf=gcodeFlavor, pcs=periodicColors, rcs=replacementColors, le=lineEnding)
           if foundNewLayer:
             currentPrint = foundNewLayer
+
+            item = StatusQueueItem()
+            item.statusLeft = f"Current Layer {currentPrint.height}"
+            item.statusRight = f"Analyzing"
+            item.progress = cp/lp * 100
+            statusQueue.put(item=item)
+
+            findLayerFeatures(f=f, gf=gcodeFlavor, printState=currentPrint, pcs=periodicColors, le=lineEnding)
+            # Save reference to last original feature in case it originally continues to next layer
+            if len(currentPrint.features) > 0:
+              currentPrint.lastFeature = currentPrint.features[len(currentPrint.features)-1]
+            reorderFeatures(ps=currentPrint)
+
             curFeature = None
             curFeatureIdx = -1
             
@@ -878,8 +930,8 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
                 currentPrint.toolchangeInsertionPoint = currentPrint.layerEnd
 
             item = StatusQueueItem()
-            item.status = f"Current Layer {currentPrint.height}"
-            item.progress = cp/lp * 100
+            item.statusRight = f"Writing"
+            item.progress = (currentPrint.layerStart+((currentPrint.layerEnd-currentPrint.layerStart)/2))/lp * 100
             statusQueue.put(item=item)
             # join to debug thread queue reading
             #statusQueue.join()
@@ -893,6 +945,10 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             curFeatureIdx += 1
 
             #print(f"Starting feature index {curFeatureIdx} {curFeature.featureType} seek to position {curFeature.start}")
+
+            item = StatusQueueItem()
+            item.statusRight = f"{curFeature.featureType} Writing"
+            statusQueue.put(item=item)
 
             f.seek(curFeature.start, os.SEEK_SET) # Seek to the start of top feature in the feature list
             startNewFeature(gcodeFlavor, currentPrint, f, out, cl, toolchangeBareFile, periodicColors, curFeature, curFeatureIdx)
@@ -926,10 +982,11 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
           currentPrint.skipWriteForCurrentLine = False
 
       item = StatusQueueItem()
-      item.status = f"Completed at {currentPrint.height} height in {str(datetime.timedelta(seconds=time.monotonic()-startTime))}s"
+      item.statusLeft = f"Current Layer {currentPrint.height}"
+      item.statusRight = f"Completed in {str(datetime.timedelta(seconds=time.monotonic()-startTime))}s"
       item.progress = 99.99
       statusQueue.put(item=item)
   except PermissionError as e:
     item = StatusQueueItem()
-    item.status = f"Failed to open {e}"
+    item.statusRight = f"Failed to open {e}"
     statusQueue.put(item=item)

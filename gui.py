@@ -12,14 +12,16 @@ import queue
 
 import enum
 
+import webbrowser
+
 from map_post_process import *
 
 # RUNTIME Flag
 TEST_MODE = False
 
 # UI Constants
-APP_NAME = 'Map Features G-code Post Processing'
-APP_VERSION = '1.5'
+APP_NAME = '3D G-code Map Feature Post Processing (MFPP)'
+APP_VERSION = '1.5.1'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -131,7 +133,7 @@ class App(tk.Tk):
     super().__init__()
 
     self.title(APP_NAME)
-    self.minsize(500, 275)
+    self.minsize(500, 300)
     self.resizable(False, False)
 
     # configure the grid
@@ -142,7 +144,8 @@ class App(tk.Tk):
     self.postProcessThread: threading.Thread = None
 
     # UI strings
-    self.status = tk.StringVar()
+    self.statusLeft = tk.StringVar()
+    self.statusRight = tk.StringVar()
     self.progress = tk.DoubleVar()
     self.progressButtonString = tk.StringVar(value=POST_PROCESS_BUTTON)
 
@@ -268,12 +271,23 @@ class App(tk.Tk):
     separator = ttk.Separator(self, orient=tk.HORIZONTAL)
     separator.grid(row=6, column=0, sticky=tk.EW, columnspan=2, padx=15, pady=5)
 
-    self.processStatusLabel = tk.Label(
+    self.processStatusLabelLeft = tk.Label(
       master=self,
-      textvariable=self.status,
-      wraplength=450
+      textvariable=self.statusLeft,
+      wraplength=150,
+      anchor=tk.W
     )
-    self.processStatusLabel.grid(row=7, column=0, columnspan=2, padx=10, sticky=tk.EW)
+    self.processStatusLabelLeft.grid(row=7, column=0, columnspan=1, padx=10, sticky=tk.EW)
+    self.statusLeft.set("Current Layer N/A")
+
+    self.processStatusLabelRight = tk.Label(
+      master=self,
+      textvariable=self.statusRight,
+      wraplength=400,
+      anchor=tk.E
+    )
+    self.processStatusLabelRight.grid(row=7, column=1, columnspan=1, padx=10, sticky=tk.EW)
+
     self.processStatusProgressBar = ttk.Progressbar(
       self,
       orient=tk.HORIZONTAL,
@@ -298,13 +312,13 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
+          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
-          #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
+          #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
 
           userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA-p4/ca_p4.gcode'
@@ -323,7 +337,7 @@ class App(tk.Tk):
           if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
             messagebox.showerror(
                 title='Post Process Requirements',
-                message='Need Print G-code, Options, Toolchange G-code, and Exported G-code to be  selected.'
+                message='Need Print G-code, Options, Toolchange G-code, and Exported G-code to be selected.'
             )
             return
           
@@ -413,22 +427,28 @@ class App(tk.Tk):
 
     infoButton = tk.Button(
       master=self,
-      text='About',
+      text='About MFPP',
       command=lambda:
         messagebox.showinfo(
           title=f"{APP_NAME} v{APP_VERSION}",
-          message='Add isolines and elevation color change features to your 3D Topo Maps when printed.\n\n www.AnsonLiu.com/maps'
+          message=f'Add isolines and elevation color change features to your 3D model g-code. Meant for use with 3D Topo Maps.\n\n{APP_NAME} is licensed under GNU Affero General Public License, version 3\n\n www.AnsonLiu.com/maps\n© 2023 Anson Liu'
         )
     )
-    infoButton.grid(row=10, column=0, sticky=tk.EW, columnspan=1, padx=10, pady=10)
+    infoButton.grid(row=10, column=0, sticky=tk.W, columnspan=1, padx=10, pady=10)
+
+    websiteButton = tk.Button(
+      master=self,
+      text='Help',
+      command=lambda:
+        webbrowser.open('https://github.com/ansonl/topo-map-post-processing')
+    )
+    websiteButton.grid(row=10, column=0, sticky=tk.E, columnspan=1, padx=10, pady=10)
 
     infoLabel = tk.Label(
       master=self,
       text=f"v{APP_VERSION}"
     )
     infoLabel.grid(row=10, column=1, sticky=tk.E, padx=10)
-
-    
 
 if __name__ == "__main__":
   statusQueue: queue.Queue[StatusQueueItem] = queue.Queue()
@@ -438,8 +458,10 @@ if __name__ == "__main__":
     while True:
       item = statusQueue.get()
       statusQueue.task_done()
-      if item.status != None:
-        app.status.set(item.status)
+      if item.statusLeft != None:
+        app.statusLeft.set(item.statusLeft)
+      if item.statusRight != None:
+        app.statusRight.set(item.statusRight)
       if item.progress != None:
         app.progress.set(item.progress)
       
