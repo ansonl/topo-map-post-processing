@@ -312,8 +312,8 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
-          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
+          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
@@ -321,10 +321,10 @@ class App(tk.Tk):
           #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
 
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA-p4/ca_p4.gcode'
-          userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA-p4/config-usaofplastic-200zperc.json'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
-          userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
+          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA-p4/ca_p4.gcode'
+          #userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA-p4/config-usaofplastic-200zperc.json'
+          #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
+          #userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
           '''
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)

@@ -11,7 +11,7 @@ UNIVERSAL_LAYER_CHANGE_END = '^; MFPP LAYER CHANGE END'
 # Gcode Regex and Constants
 
 # Movement
-MOVEMENT_G = '^^(?:G(?:0|1|2|3) )\s?(?:([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?(?:\s+([XYZEF])(-?\d*\.?\d*))?'
+MOVEMENT_G = '^(?:G(?:0|1|2|3) )\s?(?:([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?'
 
 # Layer Change
 LAYER_CHANGE = '^;\s?(?:CHANGE_LAYER|LAYER_CHANGE)'
@@ -74,6 +74,7 @@ class Position:
     self.Z: float
     self.E: float
     self.F: float
+    self.FTravel: float
 
 class ToolchangeType(enum.Enum):
   NONE = enum.auto()
@@ -320,30 +321,6 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       else:
         ps.features.append(cf)
 
-    def checkAndRecordLastPosition(input: str):
-      # look for movement gcode and record last position before entering a feature
-      movementMatch = re.match(MOVEMENT_G, input)
-      if movementMatch:
-        m = 0
-        while m+1 < len(movementMatch.groups()):
-          if movementMatch.groups()[m] == None:
-            break
-          axis = str(movementMatch.groups()[m])
-          axisValue = float(movementMatch.groups()[m+1])
-          if axis == 'X':
-            curStartPosition.X = axisValue
-          elif axis == 'Y':
-            curStartPosition.Y = axisValue
-          elif axis == 'Z':
-            curStartPosition.Z = axisValue
-          elif axis == 'E':
-            curStartPosition.E = axisValue
-          elif axis == 'F':
-            curStartPosition.F = axisValue
-          else:
-            print(f"Unknown axis {axis} {axisValue} at {f.tell()}")
-          m += 2
-
     # Enable after lookahead if a feature spans a layer change
     useFirstSpecialGcodeAsFeature = None
 
@@ -381,7 +358,11 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
         printState.layerEndOriginalColor = curOriginalColor
         break
       
-      checkAndRecordLastPosition(input=cl)
+      #Debug
+      if f.tell() == 125095:
+        0==0
+
+      checkAndUpdatePosition(cl=cl, pp=curStartPosition)
 
       # If UNIVERSAL LAYER CHANGE END found first, look ahead to see if a new feature is the first thing on this layer or previous feature is continued.
       if len(printState.features) == 0 and layerChangeEndMatch:
@@ -698,36 +679,46 @@ def determineIfNextFeatureNeedsToolchange(ps: PrintState, cfi: int) -> tuple[boo
 
   return beforeNextFeaturePrintingColor != printingToolchangeNewColorIndex, printingToolchangeNewColorIndex, passedNonTCPrimeTowers
 
-# Update states for movment POSITION and TOOL
-def updatePrintState(ps: PrintState, cl: int, sw: bool):
-  # look for movement gcode and record last position
+# Update position state
+def checkAndUpdatePosition(cl: str, pp: Position):
+  # look for movement gcode and record last position before entering a feature
   movementMatch = re.match(MOVEMENT_G, cl)
   if movementMatch:
     m = 0
+    travelMove = True
     while m+1 < len(movementMatch.groups()):
       if movementMatch.groups()[m] == None:
         break
       axis = str(movementMatch.groups()[m])
       axisValue = float(movementMatch.groups()[m+1])
-      if axis == 'X':
-        ps.originalPosition.X = axisValue
-      elif axis == 'Y':
-        ps.originalPosition.Y = axisValue
-      elif axis == 'Z':
-        ps.originalPosition.Z = axisValue
-      elif axis == 'E':
-        ps.originalPosition.E = axisValue
-      elif axis == 'F':
-        ps.originalPosition.F = axisValue
-      else:
-        print(f"Unknown axis {axis} {axisValue} at {cl}")
       m += 2
+      if axis == 'X':
+        pp.X = axisValue
+      elif axis == 'Y':
+        pp.Y = axisValue
+      elif axis == 'Z':
+        pp.Z = axisValue
+      elif axis == 'I' or axis == 'J' or axis == 'P' or axis == 'R':
+        continue
+      elif axis == 'E':
+        pp.E = axisValue
+        travelMove = False
+      elif axis == 'F':
+        pp.F = axisValue
+      else:
+        print(f"Unknown axis {axis} {axisValue} for input {cl}")
+      
 
+    # If this move did not have extrusion, save the Feedrate as last travel speed
+    if travelMove:
+      pp.FTravel = pp.F
+
+# Update states for movment POSITION and TOOL
+def updatePrintState(ps: PrintState, cl: str, sw: bool):
+  # look for movement gcode and record last position
+  checkAndUpdatePosition(cl=cl, pp=ps.originalPosition)
   # look for toolchange T
   toolchangeMatch = re.match(TOOLCHANGE_T, cl)
-
-  if ps.height == 1.4:
-    0==0
 
   # Only update printstatus.originalcolor until we find the first layer. Toolchanges we find after wards are out of order due to rearranged features. We should use layerendoriginalcolor after first layer.
   if toolchangeMatch:
@@ -772,7 +763,7 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
       getattr(curFeature.startPosition, "Z")
       restoreCmd += f" Z{curFeature.startPosition.Z}"
       getattr(curFeature.startPosition, "F")
-      restoreCmd += f" F{curFeature.startPosition.F}"
+      restoreCmd += f" F{curFeature.startPosition.FTravel}"
     except AttributeError as e:
       print(f"Restore position did not find axis {e} yet")
     if len(restoreCmd) > 2:
@@ -884,8 +875,6 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         # Update current print state variables
         updatePrintState(ps=currentPrint, cl=cl, sw=currentPrint.skipWrite)
       
-        
-
         # If no more features left in stackcheck for new layers
         # Look for start of a layer CHANGE_LAYER
         if len(currentPrint.features) == 0:
