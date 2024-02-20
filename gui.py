@@ -84,7 +84,7 @@ LINE_ENDING_UNIX_TITLE = f"Unix {repr(LineEnding.UNIX.value)}"
 # user options dict
 userOptions = {}
 
-def select_file(filetypes:[tuple]):
+def select_file(filetypes:tuple[str]):
   filetypes.append(('All files', '*.*'))
 
   filename = fd.askopenfilename(
@@ -167,32 +167,36 @@ class App(tk.Tk):
 
     def selectImportGcodeFile():
       fn = select_file([('G-code file', '*.gcode')])
-      importGcodeButton.config(text=truncateMiddleLength(fn, 50))
-      exportFn = addExportToFilename(fn)
-      exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
-      userOptions[IMPORT_GCODE_FILENAME] = fn
-      userOptions[EXPORT_GCODE_FILENAME] = exportFn
+      if fn:
+        importGcodeButton.config(text=truncateMiddleLength(fn, 50))
+        exportFn = addExportToFilename(fn)
+        exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
+        userOptions[IMPORT_GCODE_FILENAME] = fn
+        userOptions[EXPORT_GCODE_FILENAME] = exportFn
 
     def selectOptionsFile():
       fn = select_file([('JSON file', '*.json')])
-      importOptionsButton.config(text=truncateMiddleLength(fn, 50))
-      userOptions[IMPORT_OPTIONS_FILENAME] = fn
+      if fn:
+        importOptionsButton.config(text=truncateMiddleLength(fn, 50))
+        userOptions[IMPORT_OPTIONS_FILENAME] = fn
 
     def selectToolchangeBareFile():
       fn = select_file([('G-code file', '*.gcode')])
-      importToolchangeBareButton.config(text=truncateMiddleLength(fn, 50))
-      userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = fn
+      if fn:
+        importToolchangeBareButton.config(text=truncateMiddleLength(fn, 50))
+        userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = fn
 
     def selectExportGcodeFile():
       fn = select_file([('G-code file', '*.gcode')])
-      if fn == userOptions[IMPORT_GCODE_FILENAME]:
-        fn = addExportToFilename(fn)
-        messagebox.showinfo(
-          title='Invalid selection',
-          message='Export file must be different from import file. The export filename has been changed to be different.'
-        )
-      exportGcodeButton.config(text=truncateMiddleLength(fn, 50))
-      userOptions[EXPORT_GCODE_FILENAME] = fn
+      if fn:
+        if fn == userOptions[IMPORT_GCODE_FILENAME]:
+          fn = addExportToFilename(fn)
+          messagebox.showinfo(
+            title='Invalid selection',
+            message='Export file must be different from import file. The export filename has been changed to be different.'
+          )
+        exportGcodeButton.config(text=truncateMiddleLength(fn, 50))
+        userOptions[EXPORT_GCODE_FILENAME] = fn
 
     def selectLineEndingFlavor(event):
       print(event)
