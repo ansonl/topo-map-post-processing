@@ -2,7 +2,7 @@
 
 Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/) with the **3D G-code Map Feature Post Processing (MFPP)** app. The primary target is 3D topo map models but any 3D model can be recolored with 2 additional colors. 
 
-[Download the latest release](https://github.com/ansonl/topo-map-post-processing/releases)!
+[Download the latest version of MFPP](https://github.com/ansonl/topo-map-post-processing/releases)!
 
 MFPP adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/). 3D models and printing g-code can be recolored at either layer or individual feature/line level granularity.
 
