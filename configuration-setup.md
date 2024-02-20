@@ -11,6 +11,31 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | 0-based index in options | `0` | `1` | `2` | `3` |
 | **Purpose** | Primary (base) | Secondary (hydro) | *Isoline* | *Elevation Color Change* |
 
+### Example Options file with Isoline and Elevation Change features
+
+```json
+{
+    "modelToRealWorldDefaultUnits": 1000,
+    "modelOneToNVerticalScale": 250000,
+    "modelSeaLevelBaseThickness": 3.6,
+    "realWorldIsolineElevationInterval": 500,
+    "realWorldIsolineElevationStart": 500,
+    "realWorldIsolineElevationEnd": 30000,
+    "modelIsolineHeight": 0.1,
+    "isolineColorIndex": 2,
+    "isolineColorFeatureTypes": [
+        "Outer wall",
+        "Inner wall",
+        "External perimeter",
+        "Perimeter"
+    ],
+    "realWorldElevationReplacementColorStart": 2000,
+    "realWorldElevationReplacementColorEnd": 30000,
+    "replacementColorIndex": 3,
+    "replacementOriginalColorIndex": 0
+}
+```
+
 ### Required Options
 
 | Key | Value | Cardinality | Description |
@@ -30,7 +55,7 @@ Filament/color positions are 0-based. The first position is represented by 0. Th
 | `realWorldIsolineElevationEnd` | `float` | 1 | Isoline ending elevation in real world units. |
 | `modelIsolineHeight` | `float` | 1 | Isoline display height in model units. |
 | `isolineColorIndex` | `integer` | 1 | Isoline filament/color loaded position. Recommended index is 2 (third slot). |
-| `isolineColorFeatureTypes` | `[string]` | ≥0 | List of printing object feature/line types (extrusion roles) to recolor at isoline elevations. Empty array will recolor all feature types. |
+| `isolineColorFeatureTypes` | `[string]` | ≥0 | List of printing object feature/line types (extrusion roles) to recolor at isoline elevations. Empty array will recolor all feature types. Feature types are case sensitive. |
 
 #### Feature Types (Extrusion Roles)
 
@@ -48,7 +73,7 @@ Modifying the feature types colored at an isoline elevation will drastically the
 
 Feature Types vary depending on the slicer used to generate the G-code. You can view supported feature types for your slicer by previewing your G-code and setting the *Color scheme* to `Line Type`. [PrusaSlicer and BambuStudio extrusion roles source](https://github.com/prusa3d/PrusaSlicer/blob/97c3679a37e9ede812432e25a096e4906110d441/src/libslic3r/GCode/GCodeProcessor.cpp#L2486).
 
-MFPP rearranges printing order of features to reduce the number of toolchanges a layer. That may affect print quality of supported parts but you can work around that by specifying the `Support` feature type for recoloring.
+MFPP rearranges printing order of features to reduce the number of toolchanges a layer. Isoline recolored features are printed first. This may affect print quality of supported parts but you can work around that by specifying the `Support` and `Bridge` feature types for recoloring.
 
 ### Elevation Change Options
 
@@ -58,22 +83,3 @@ MFPP rearranges printing order of features to reduce the number of toolchanges a
 | `realWorldElevationReplacementColorEnd` | `float` | 1 | Elevation based replacement color end elevation in real world units. |
 | `replacementColorIndex` | `integer` | 1 | Elevation based replacement color filament/color loaded position. Recommended index is 3 (fourth slot). |
 | `replacementOriginalColorIndex` | `integer` | 1 | Elevation based replacement color **replaced** filament/color loaded position. Recommended index is 0 (first slot). |
-
-### Example Options file with Isoline and Elevation Change features
-
-```json
-{
-  "modelToRealWorldDefaultUnits": 1000,
-  "modelOneToNVerticalScale": 500000,
-  "modelSeaLevelBaseThickness": 0.1,
-  "realWorldIsolineElevationInterval": 500,
-  "realWorldIsolineElevationStart": 200,
-  "realWorldIsolineElevationEnd": 5000,
-  "modelIsolineHeight": 0.5,
-  "isolineColorIndex": 2,
-  "realWorldElevationReplacementColorStart": 3650,
-  "realWorldElevationReplacementColorEnd": 100000,
-  "replacementColorIndex": 3,
-  "replacementOriginalColorIndex": 0
-}
-```
