@@ -38,14 +38,14 @@ I highly recommend setting your toolchange G-code within firmware as a macro in 
 With toolchange movements properly setup in firmware, a toolchange becomes as simple as the below.
 
 ```gcode
+; Single-extruder Toolchange
+TXX
+
 ; Multi-extruder Toolchange
 M104 S170     ; Set the active hotend to the standby temperature
 M104 S210 TXX ; Set the next hotend index to the print/purge temperature
 TXX           ; Execute the tool change
 M109 S210     ; Wait for next (now active) hotend to warm up 
-
-; Single-extruder Toolchange
-TXX
 ```
 
 A properly set up tool change g-code in firmware example for a multi-extruder 3D printer can be seen for the Ultimaker DXUv2 [here](https://github.com/ansonl/DXU/blob/master/Firmware/README.md#toolchange-g-code).

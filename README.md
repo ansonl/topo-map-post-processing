@@ -18,11 +18,11 @@ MFPP adds additional features to the model by post processing sliced [3D printer
 
 ![map feature gcode post processing screenshot](/assets/gui_screenshot.png)
 
-If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling through my [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
+If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling with a [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
 
 ## Current G-code flavors supported
 
-- Marlin 2 (PrusaSlicer/Bambu Studio)
+- Marlin 2 ([PrusaSlicer](https://github.com/prusa3d/PrusaSlicer)/[Bambu Studio](https://github.com/bambulab/BambuStudio))
 
 Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer and Bambu Studio default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be enabled.
 
