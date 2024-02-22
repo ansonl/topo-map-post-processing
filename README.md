@@ -36,13 +36,13 @@ If you would like support for your printer or slicer G-code flavor to be added, 
 
 ## Getting Started
 
-Set up your slicer and printer for MFPP by following the steps on every page below:
+Set up your slicer and printer for MFPP by following the steps on each page below:
 
-- [Slicer Setup](slicer-setup.md)
+1. [Slicer Setup](slicer-setup.md)
 
-- [Configuration](configuration-setup.md)
+2. [Configuration](configuration-setup.md)
 
-- [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
+3. [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
 After following all the above set up pages, download the [latest release of MFPP](https://github.com/ansonl/topo-map-post-processing/releases) and run `gui.exe`.
 
