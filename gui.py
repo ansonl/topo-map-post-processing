@@ -21,7 +21,7 @@ TEST_MODE = False
 
 # UI Constants
 APP_NAME = '3D G-code Map Feature Post Processing (MFPP)'
-APP_VERSION = '1.5.1'
+APP_VERSION = '1.5.2'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -132,7 +132,7 @@ class App(tk.Tk):
   def __init__(self, queue: queue.Queue):
     super().__init__()
 
-    self.title(APP_NAME)
+    self.title(f'{APP_NAME} {APP_VERSION}')
     self.minsize(500, 300)
     self.resizable(False, False)
 
@@ -321,14 +321,14 @@ class App(tk.Tk):
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-bambu-x1-series.gcode'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-x1-series.gcode'
           #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
 
-          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA-p4/ca_p4.gcode'
-          #userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA-p4/config-usaofplastic-200zperc.json'
-          #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
-          #userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
+          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA/ca_p3.gcode'
+          userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA/config-usaofplastic-200zperc.json'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-x1-series.gcode'
+          userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
           '''
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)

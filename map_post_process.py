@@ -117,6 +117,7 @@ class PrintState:
     #Loop settings
     self.skipWrite: bool = False
     self.skipWriteForCurrentLine: bool = False
+    self.prevLayerSkipWrite: bool = False
     
     #self.toolchangeBareInsertionPoint: Feature = None
     #self.toolchangeFullInsertionPoint: Feature = None
@@ -221,6 +222,7 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     printState.prevLayerLastFeature = lastPrintState.lastFeature
     printState.featureWipeEndPrime = lastPrintState.featureWipeEndPrime
+    printState.prevLayerSkipWrite = lastPrintState.skipWrite #Keep track if we were skipping last line in previous layer
 
     # Find Z_HEIGHT value
     cl = f.readline()
@@ -880,7 +882,8 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         if len(currentPrint.features) == 0:
           # If no more features and we are at a stop position write the read line and jump to layer end (cursor at start of CHANGE_LAYER line). This is needed for the case where the last feature original position is not last in the original file.
           if f.tell() in currentPrint.stopPositions and f.tell() != currentPrint.layerEnd:
-            writeWithFilters(out, cl, loadedColors)
+            if not currentPrint.skipWrite:
+              writeWithFilters(out, cl, loadedColors)
             f.seek(currentPrint.layerEnd, os.SEEK_SET)
 
           # Save current pos for restore since findChangeLayer() will change pos
@@ -924,9 +927,11 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             statusQueue.put(item=item)
             # join to debug thread queue reading
             #statusQueue.join()
-
             
           f.seek(cp, os.SEEK_SET)
+          # We wrote last line in previous layer (readline for this loop) already if needed so we can move to next loop iteration
+          if foundNewLayer:
+            continue
         else: # look for feature stop
           if cp in currentPrint.stopPositions: # find a stop position to "start" a new feature
             currentPrint.stopPositions.remove(cp)
