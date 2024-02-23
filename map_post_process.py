@@ -880,8 +880,8 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
         # If no more features left in stackcheck for new layers
         # Look for start of a layer CHANGE_LAYER
         if len(currentPrint.features) == 0:
-          # If no more features and we are at a stop position write the read line and jump to layer end (cursor at start of CHANGE_LAYER line). This is needed for the case where the last feature original position is not last in the original file.
-          if f.tell() in currentPrint.stopPositions and f.tell() != currentPrint.layerEnd:
+          # If no more features and we are at a stop position write the read line and jump to layer end (cursor at start of CHANGE_LAYER line). This is needed required for the case where the last feature original position is not last in the original file. But we write the current last line and seek to layer end everytime so that we can continue the loop without figuring out if write the previous line found after found new layer because we did it here.
+          if f.tell() in currentPrint.stopPositions:
             if not currentPrint.skipWrite:
               writeWithFilters(out, cl, loadedColors)
             f.seek(currentPrint.layerEnd, os.SEEK_SET)
@@ -929,9 +929,11 @@ def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFil
             #statusQueue.join()
             
           f.seek(cp, os.SEEK_SET)
-          # We wrote last line in previous layer (readline for this loop) already if needed so we can move to next loop iteration
+
+          # We wrote last line in previous layer (readline for this loop) already if the last feature. 
           if foundNewLayer:
             continue
+
         else: # look for feature stop
           if cp in currentPrint.stopPositions: # find a stop position to "start" a new feature
             currentPrint.stopPositions.remove(cp)
