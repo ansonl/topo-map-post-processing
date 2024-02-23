@@ -614,7 +614,7 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
           writeWithFilters(out, cl, loadedColors)
           out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")
           out.write("; WIPE_END placeholder for BambuStudio Gcode Preview\n")
-          out.write("; MFPP Original WIPE_END skipped\n")
+          out.write("; MFPP Original WIPE_END skipped for inserted Prime Tower\n")
           skipWriteToolchange = True
 
         if skipWriteToolchange == False:
