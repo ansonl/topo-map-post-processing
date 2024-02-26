@@ -21,7 +21,7 @@ TEST_MODE = False
 
 # UI Constants
 APP_NAME = '3D G-code Map Feature Post Processing (MFPP)'
-APP_VERSION = '1.5.2'
+APP_VERSION = '1.5.3'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -329,6 +329,11 @@ class App(tk.Tk):
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA/config-usaofplastic-200zperc.json'
           userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-x1-series.gcode'
           userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
+
+          userOptions[IMPORT_GCODE_FILENAME] = 'longs.gcode'
+          userOptions[IMPORT_OPTIONS_FILENAME] = 'configuration-CO-z1000perc.json'
+          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-p1-series.gcode'
+          userOptions[EXPORT_GCODE_FILENAME] = 'longs-export.gcode'
           '''
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)
