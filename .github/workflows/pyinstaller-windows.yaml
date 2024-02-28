@@ -29,11 +29,11 @@ jobs:
         path: src/dist/windows
 
     - name: Package Application - Linux
-      uses: JackMcKew/pyinstaller-action-linux@main
+      uses: JackMcKew/pyinstaller-action-linux@python3.10
       with:
         path: src
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v4
       with:
         name: name-of-artifact
         path: src/dist/linux
