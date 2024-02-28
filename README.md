@@ -1,6 +1,6 @@
 # 3D G-code Map Feature Modifier (MFM)
 
-Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Modifier (MFM)** is made for 3D topo map models but any 3D model can be recolored with 2 additional colors. 
+Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Modifier (MFM)** is a G-code Post Processor made for 3D topo map models but any 3D model can be recolored with 2 additional colors.
 
 [Download the latest version of MFM](https://github.com/ansonl/topo-map-post-processing/releases)!
 
@@ -48,14 +48,20 @@ After following all the above set up pages, download the [latest release of MFM]
 
 If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.py`.
 
-## Limitations
+## Frequent Issues
 
 | 🚧 Issue | Solution |
 | --- | --- |
-| Color change may not happen on layers where a feature/line type spans a layer boundary. | The console log will show 0 or low amount of features found on that layer relative to other layers. Some slicers will continue features/lines between layers which makes detecting features/lines less reliable. Make a bug report. |
-| Support and Bridge features are not explicitly prioritized to pprint first.  | I may prioritize them in the future. Add an issue on your use case for this. |
+| How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as G-code. This exported G-code file can be processed and recolored by MFM. |
+| How do I printer my G-code file? | Put the G-code file on an SD card or transfer the G-code file to your printer over the network. Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464). |
+| MFM did not add or change any colors. | Setup your slicer for MFM through [Slicer Setup](slicer-setup.md) |
+| How can MFM recoloring be customized? | Read [Configuration](configuration-setup.md) for details. |
+| How can MFM be used with a material other than PLA and customized toolchange? | See [Minimal Toolchange G-code](minimal-toolchange-gcode.md) on recommendations on how to setup your own toolchange. |
+| Incorrect color was printed even though previewing the exported G-code in the slicer shows the correct color slots being used. | Assign a different filament to each slot in the Bambu AMS. Every slot with a different color **must have a different color assigned** in AMS. Otherwise Bambu AMS [Autoswitch](https://forum.bambulab.com/t/automatic-material-switch-over/4189) feature may try to use a single slot's filament for a shared material and color between multiple slots. |
 | Mixed OS line endings in the same file will lead to G-code errors. MFM tries to auto detect the line ending used with first line ending found. | Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers) |
 | Only one isoline interval and/or colored elevation range can be set. | Only one of each is exposed at the moment. The implementation could support more in the future if there is a use case. |
+| Support and Bridge features are not explicitly prioritized to pprint first.  | I may prioritize them in the future. Add an issue on your use case for this. |
+| Acceleration  | I may prioritize them in the future. Add an issue on your use case for this. |
 
 ## Bug Reports
 
