@@ -44,7 +44,7 @@ Set up your slicer and printer for MFM by following the steps on each page below
 
 3. [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
-After following all the above set up pages, download the [latest release of MFM](https://github.com/ansonl/topo-map-post-processing/releases) and run `gui.exe`.
+After following all the above set up pages, download the [latest release of MFM](https://github.com/ansonl/topo-map-post-processing/releases) and run `MFM.exe`.
 
 If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.py`.
 
