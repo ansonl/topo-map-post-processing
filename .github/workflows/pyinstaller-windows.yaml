@@ -15,6 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+    - name: pyinstaller update
+      run: |
+        pip install -U pyinstaller
+
     - uses: actions/checkout@v2
 
     - name: Package Application
