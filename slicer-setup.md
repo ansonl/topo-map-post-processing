@@ -1,4 +1,4 @@
-# Slicer Setup for MFPP
+# Slicer Setup for MFM
 
 ## G-code coordinate positioning mode
 
@@ -18,11 +18,11 @@ Save the printer profile with a new name and select the new printer profile for 
 
 1. Printer > Settings > **Custom G-code / Machine G-code**
 
-2. Add `; MFPP LAYER CHANGE END` on a new line at the end of **After layer change G-code / Layer change G-code**.
+2. Add `; MFM LAYER CHANGE END` on a new line at the end of **After layer change G-code / Layer change G-code**.
 
-3. Add `; MFPP TOOLCHANGE START`  on a new line at the beginning of **Tool change G-code / Change filament G-code**.
+3. Add `; MFM TOOLCHANGE START`  on a new line at the beginning of **Tool change G-code / Change filament G-code**.
 
-4. Add `; MFPP TOOLCHANGE END`  on a new line at the end of **Tool change G-code / Change filament G-code**.
+4. Add `; MFM TOOLCHANGE END`  on a new line at the end of **Tool change G-code / Change filament G-code**.
 
 5. The resulting settings text fields should have an order like below
 
@@ -31,15 +31,15 @@ Save the printer profile with a new name and select the new printer profile for 
 ```gcode
 ; Existing layer change G-code stays HERE
 
-; MFPP LAYER CHANGE END
+; MFM LAYER CHANGE END
 ```
 
 #### Tool change G-code
 
 ```gcode
-; MFPP TOOLCHANGE START
+; MFM TOOLCHANGE START
 
 ; Existing toolchange G-code stays HERE
 
-; MFPP TOOLCHANGE END
+; MFM TOOLCHANGE END
 ```

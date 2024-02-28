@@ -1,10 +1,10 @@
-# 3D G-code Map Feature Post Processing (MFPP)
+# 3D G-code Map Feature Modifier (MFM)
 
-Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Post Processing (MFPP)** is made for 3D topo map models but any 3D model can be recolored with 2 additional colors. 
+Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Modifier (MFM)** is made for 3D topo map models but any 3D model can be recolored with 2 additional colors. 
 
-[Download the latest version of MFPP](https://github.com/ansonl/topo-map-post-processing/releases)!
+[Download the latest version of MFM](https://github.com/ansonl/topo-map-post-processing/releases)!
 
-MFPP adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/). 3D models and printing g-code can be recolored at either layer or individual feature/line level granularity.
+MFM adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/). 3D models and printing g-code can be recolored at either layer or individual feature/line level granularity.
 
 - **Feature/Line Type Scoping** - Recoloring can be set to only affect specific printing feature/line types. *Only want to recolor top surfaces or walls at certain heights? No problem!*
 
@@ -36,7 +36,7 @@ If you would like support for your printer or slicer G-code flavor to be added, 
 
 ## Getting Started
 
-Set up your slicer and printer for MFPP by following the steps on each page below:
+Set up your slicer and printer for MFM by following the steps on each page below:
 
 1. [Slicer Setup](slicer-setup.md)
 
@@ -44,9 +44,9 @@ Set up your slicer and printer for MFPP by following the steps on each page belo
 
 3. [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
-After following all the above set up pages, download the [latest release of MFPP](https://github.com/ansonl/topo-map-post-processing/releases) and run `gui.exe`.
+After following all the above set up pages, download the [latest release of MFM](https://github.com/ansonl/topo-map-post-processing/releases) and run `gui.exe`.
 
-If a release of MFPP has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.py`.
+If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.py`.
 
 ## Limitations
 
@@ -54,12 +54,12 @@ If a release of MFPP has not been built for your OS, you can [download](https://
 | --- | --- |
 | Color change may not happen on layers where a feature/line type spans a layer boundary. | The console log will show 0 or low amount of features found on that layer relative to other layers. Some slicers will continue features/lines between layers which makes detecting features/lines less reliable. Make a bug report. |
 | Support and Bridge features are not explicitly prioritized to pprint first.  | I may prioritize them in the future. Add an issue on your use case for this. |
-| Mixed OS line endings in the same file will lead to G-code errors. MFPP tries to auto detect the line ending used with first line ending found. | Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers) |
+| Mixed OS line endings in the same file will lead to G-code errors. MFM tries to auto detect the line ending used with first line ending found. | Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers) |
 | Only one isoline interval and/or colored elevation range can be set. | Only one of each is exposed at the moment. The implementation could support more in the future if there is a use case. |
 
 ## Bug Reports
 
-Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFPP configuration JSON, before/after G-code, and console log.
+Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFM configuration JSON, before/after G-code, and console log.
 
 ## License and Disclaimer
 

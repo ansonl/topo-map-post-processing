@@ -22,7 +22,7 @@ Bambu AMS Toolchange
 
 | Parameter    | Notes |
 | -------- | ------- |
-| SXXA | Switch to XX filament |
+| SXXA | Switch to XX filament. `M620 M` previous line and four spaces on next lines for conditional execution if AMS exists and material switched.  |
 | S255 | pull back filament to AMS |
 | .1 E F523 T240 | Switch to XX filament |
 

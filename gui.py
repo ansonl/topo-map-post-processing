@@ -5,7 +5,6 @@ from tkinter import messagebox
 
 import json
 import os
-import time
 
 import threading
 import queue
@@ -14,22 +13,22 @@ import enum
 
 import webbrowser
 
-from map_post_process import *
+from mfm.map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = False
+TEST_MODE = True
 
 # UI Constants
-APP_NAME = '3D G-code Map Feature Post Processing (MFPP)'
+APP_NAME_ABBREVIATION = 'MFM'
+APP_NAME = f'3D G-code Map Feature Modifier ({APP_NAME_ABBREVIATION})'
 APP_VERSION = '1.5.3'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
 # Options keys
-IMPORT_GCODE_FILENAME = 'importGcodeFilename'
+#CONFIG_INPUT_FILE = 'importGcodeFilename'
 IMPORT_OPTIONS_FILENAME = 'importOptionsFilename'
-IMPORT_TOOLCHANGE_BARE_FILENAME = 'importToolchangeBareFilename'
-EXPORT_GCODE_FILENAME = 'exportGcodeFilename'
+#CONFIG_OUTPUT_FILE = 'exportGcodeFilename'
 
 MODEL_TO_REAL_WORLD_DEFAULT_UNITS = 'modelToRealWorldDefaultUnits'
 MODEL_ONE_TO_N_VERTICAL_SCALE = 'modelOneToNVerticalScale'
@@ -101,7 +100,7 @@ def truncateMiddleLength(s, length):
 
 def addExportToFilename(fn):
   fnSplit = os.path.splitext(fn)
-  exportFn = f"{fnSplit[0]}-MFPP-export"
+  exportFn = f"{fnSplit[0]}-MFM-export"
   if len(fnSplit) > 1:
     exportFn += fnSplit[1]
   return exportFn
@@ -127,7 +126,6 @@ def determineLineEndingTypeInFile(fn) -> LineEnding:
       c^=1
 
   return LineEnding.UNKNOWN 
-
 class App(tk.Tk):
   def __init__(self, queue: queue.Queue):
     super().__init__()
@@ -171,8 +169,8 @@ class App(tk.Tk):
         importGcodeButton.config(text=truncateMiddleLength(fn, 50))
         exportFn = addExportToFilename(fn)
         exportGcodeButton.config(text=truncateMiddleLength(exportFn, 50))
-        userOptions[IMPORT_GCODE_FILENAME] = fn
-        userOptions[EXPORT_GCODE_FILENAME] = exportFn
+        userOptions[CONFIG_INPUT_FILE] = fn
+        userOptions[CONFIG_OUTPUT_FILE] = exportFn
 
     def selectOptionsFile():
       fn = select_file([('JSON file', '*.json')])
@@ -184,19 +182,19 @@ class App(tk.Tk):
       fn = select_file([('G-code file', '*.gcode')])
       if fn:
         importToolchangeBareButton.config(text=truncateMiddleLength(fn, 50))
-        userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = fn
+        userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = fn
 
     def selectExportGcodeFile():
       fn = select_file([('G-code file', '*.gcode')])
       if fn:
-        if fn == userOptions[IMPORT_GCODE_FILENAME]:
+        if fn == userOptions[CONFIG_INPUT_FILE]:
           fn = addExportToFilename(fn)
           messagebox.showinfo(
             title='Invalid selection',
             message='Export file must be different from import file. The export filename has been changed to be different.'
           )
         exportGcodeButton.config(text=truncateMiddleLength(fn, 50))
-        userOptions[EXPORT_GCODE_FILENAME] = fn
+        userOptions[CONFIG_OUTPUT_FILE] = fn
 
     def selectLineEndingFlavor(event):
       print(event)
@@ -306,10 +304,10 @@ class App(tk.Tk):
       def postProcessTask():
         global userOptions
         userOptions = {
-          IMPORT_GCODE_FILENAME : userOptions.get(IMPORT_GCODE_FILENAME),
+          CONFIG_INPUT_FILE : userOptions.get(CONFIG_INPUT_FILE),
           IMPORT_OPTIONS_FILENAME : userOptions.get(IMPORT_OPTIONS_FILENAME),
-          IMPORT_TOOLCHANGE_BARE_FILENAME : userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME),
-          EXPORT_GCODE_FILENAME : userOptions.get(EXPORT_GCODE_FILENAME),
+          CONFIG_TOOLCHANGE_MINIMAL_FILE : userOptions.get(CONFIG_TOOLCHANGE_MINIMAL_FILE),
+          CONFIG_OUTPUT_FILE : userOptions.get(CONFIG_OUTPUT_FILE),
           LINE_ENDING_FLAVOR : userOptions.get(LINE_ENDING_FLAVOR)
         }
         periodicColors: list[PeriodicColor] = []
@@ -317,23 +315,23 @@ class App(tk.Tk):
 
         if TEST_MODE:
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
+          userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
           #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-x1-series.gcode'
+          userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-x1-series.gcode'
           #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
-          userOptions[EXPORT_GCODE_FILENAME] = 'dice-export.gcode'
+          userOptions[CONFIG_OUTPUT_FILE] = 'dice-export.gcode'
 
-          userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/CA/ca_p3.gcode'
-          userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA/config-usaofplastic-200zperc.json'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-x1-series.gcode'
-          userOptions[EXPORT_GCODE_FILENAME] = 'CA-export.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'sample_models/CA/ca_p3.gcode'
+          #userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/CA/config-usaofplastic-200zperc.json'
+          #userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-x1-series.gcode'
+          #userOptions[CONFIG_OUTPUT_FILE] = 'CA-export.gcode'
 
-          userOptions[IMPORT_GCODE_FILENAME] = 'longs.gcode'
-          userOptions[IMPORT_OPTIONS_FILENAME] = 'configuration-CO-z1000perc.json'
-          userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/bambu-p1-series.gcode'
-          userOptions[EXPORT_GCODE_FILENAME] = 'longs-export.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'longs.gcode'
+          #userOptions[IMPORT_OPTIONS_FILENAME] = 'configuration-CO-z1000perc.json'
+          #userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-p1-series.gcode'
+          #userOptions[CONFIG_OUTPUT_FILE] = 'longs-export.gcode'
           '''
           periodicColors = [
             PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)
@@ -343,7 +341,7 @@ class App(tk.Tk):
           ]
           '''
         else:
-          if userOptions.get(IMPORT_GCODE_FILENAME) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(IMPORT_TOOLCHANGE_BARE_FILENAME) == None or userOptions.get(EXPORT_GCODE_FILENAME) == None:
+          if userOptions.get(CONFIG_INPUT_FILE) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(CONFIG_TOOLCHANGE_MINIMAL_FILE) == None or userOptions.get(CONFIG_OUTPUT_FILE) == None:
             messagebox.showerror(
                 title='Post Process Requirements',
                 message='Need Print G-code, Options, Toolchange G-code, and Exported G-code to be selected.'
@@ -400,20 +398,23 @@ class App(tk.Tk):
         lineEndingFlavor = userOptions[LINE_ENDING_FLAVOR] if userOptions[LINE_ENDING_FLAVOR] else LineEnding.AUTODETECT
         print(f"Selected {repr(lineEndingFlavor)} line ending.")
         if lineEndingFlavor == LineEnding.AUTODETECT:
-          lineEndingFlavor = determineLineEndingTypeInFile(userOptions[IMPORT_GCODE_FILENAME])
+          lineEndingFlavor = determineLineEndingTypeInFile(userOptions[CONFIG_INPUT_FILE])
           print(f"Detected {repr(lineEndingFlavor)} line ending in input G-code file.")
           if lineEndingFlavor == LineEnding.UNKNOWN:
             lineEndingFlavor = LineEnding.UNIX
             print(f"Defaulting to {LINE_ENDING_UNIX_TITLE}")
 
-        process(gcodeFlavor=MARLIN_2_BAMBU_PRUSA_MARKED_GCODE, \
-                inputFile=userOptions[IMPORT_GCODE_FILENAME], \
-                outputFile=userOptions[EXPORT_GCODE_FILENAME], \
-                toolchangeBareFile=userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME], \
-                periodicColors=periodicColors, \
-                replacementColors=replacementColors, \
-                lineEnding=lineEndingFlavor.value, \
-                statusQueue=self.queue)
+        mfmConfig = MFMConfiguration()
+        mfmConfig[CONFIG_GCODE_FLAVOR] = MARLIN_2_BAMBU_PRUSA_MARKED_GCODE
+        mfmConfig[CONFIG_INPUT_FILE] = userOptions[CONFIG_INPUT_FILE]
+        mfmConfig[CONFIG_OUTPUT_FILE] = userOptions[CONFIG_OUTPUT_FILE]
+        mfmConfig[CONFIG_TOOLCHANGE_MINIMAL_FILE] = userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE]
+        mfmConfig[CONFIG_PERIODIC_COLORS] = periodicColors
+        mfmConfig[CONFIG_REPLACEMENT_COLORS] = replacementColors
+        mfmConfig[CONFIG_LINE_ENDING] = lineEndingFlavor.value
+        mfmConfig[CONFIG_APP_NAME] = APP_NAME
+        mfmConfig[CONFIG_APP_VERSION] = APP_VERSION
+        process(mfmConfig, statusQueue)
 
       startPostProcessButton["state"] = "disabled"
 
@@ -436,7 +437,7 @@ class App(tk.Tk):
 
     infoButton = tk.Button(
       master=self,
-      text='About MFPP',
+      text=f'About',
       command=lambda:
         messagebox.showinfo(
           title=f"{APP_NAME} v{APP_VERSION}",
