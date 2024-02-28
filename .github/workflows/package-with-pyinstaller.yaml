@@ -1,5 +1,5 @@
 
-name: Package with Pyinstaller
+name: Package Application with Pyinstaller
 
 on:
   #push:
@@ -27,13 +27,3 @@ jobs:
       with:
         name: MFM-win64
         path: src/dist/windows
-
-    - name: Package Application - Linux
-      uses: JackMcKew/pyinstaller-action-linux@python3.10
-      with:
-        path: src
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: MFM-linux
-        path: src/dist/linux
