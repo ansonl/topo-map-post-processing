@@ -1,5 +1,5 @@
 
-name: Package Application with Pyinstaller
+name: Package with Pyinstaller
 
 on:
   #push:
