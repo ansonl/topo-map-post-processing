@@ -16,7 +16,7 @@ import webbrowser
 from mfm.map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = True
+TEST_MODE = False
 
 # UI Constants
 APP_NAME_ABBREVIATION = 'MFM'
@@ -83,11 +83,21 @@ LINE_ENDING_UNIX_TITLE = f"Unix {repr(LineEnding.UNIX.value)}"
 # user options dict
 userOptions = {}
 
-def select_file(filetypes:tuple[str]):
+def select_open_file(filetypes:tuple[str]):
   filetypes.append(('All files', '*.*'))
 
   filename = fd.askopenfilename(
     title='Open a file',
+    initialdir='./',
+    filetypes=filetypes)
+  
+  return filename
+
+def select_save_file(filetypes:tuple[str]):
+  filetypes.append(('All files', '*.*'))
+
+  filename = fd.asksaveasfilename(
+    title='Save as file',
     initialdir='./',
     filetypes=filetypes)
   
@@ -164,7 +174,7 @@ class App(tk.Tk):
     gcodeFlavorComboBox.grid(row=0, column=1, sticky=tk.EW, padx=10, pady=10)
 
     def selectImportGcodeFile():
-      fn = select_file([('G-code file', '*.gcode')])
+      fn = select_open_file([('G-code file', '*.gcode')])
       if fn:
         importGcodeButton.config(text=truncateMiddleLength(fn, 50))
         exportFn = addExportToFilename(fn)
@@ -173,19 +183,19 @@ class App(tk.Tk):
         userOptions[CONFIG_OUTPUT_FILE] = exportFn
 
     def selectOptionsFile():
-      fn = select_file([('JSON file', '*.json')])
+      fn = select_open_file([('JSON file', '*.json')])
       if fn:
         importOptionsButton.config(text=truncateMiddleLength(fn, 50))
         userOptions[IMPORT_OPTIONS_FILENAME] = fn
 
     def selectToolchangeBareFile():
-      fn = select_file([('G-code file', '*.gcode')])
+      fn = select_open_file([('G-code file', '*.gcode')])
       if fn:
         importToolchangeBareButton.config(text=truncateMiddleLength(fn, 50))
         userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = fn
 
     def selectExportGcodeFile():
-      fn = select_file([('G-code file', '*.gcode')])
+      fn = select_save_file([('G-code file', '*.gcode')])
       if fn:
         if fn == userOptions[CONFIG_INPUT_FILE]:
           fn = addExportToFilename(fn)
@@ -314,13 +324,13 @@ class App(tk.Tk):
         replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
-          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
-          userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
-          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
-          #userOptions[IMPORT_GCODE_FILENAME] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
+          userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
-          userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-x1-series.gcode'
-          #userOptions[IMPORT_TOOLCHANGE_BARE_FILENAME] = 'minimal_toolchanges/toolchange-bare-prusa-xl-series.gcode'
+          #userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-x1-series.gcode'
+          userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/prusa-xl-series.gcode'
           userOptions[CONFIG_OUTPUT_FILE] = 'dice-export.gcode'
 
           #userOptions[CONFIG_INPUT_FILE] = 'sample_models/CA/ca_p3.gcode'

@@ -9,12 +9,18 @@ class StatusQueueItem:
 # Position
 class Position:
   def __init__(self):
+    # Position
     self.X: float
     self.Y: float
     self.Z: float
     self.E: float
+    # Feedrate
     self.F: float
     self.FTravel: float
+    # Acceleration
+    self.P: float # Printing acceleration
+    self.R: float # Retract acceleration
+    self.T: float # Travel acceleration for moves with no extrusion.
 
 class ToolchangeType(enum.Enum):
   NONE = enum.auto()

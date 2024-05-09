@@ -20,7 +20,12 @@ UNIVERSAL_LAYER_CHANGE_END = '^; MFM LAYER CHANGE END'
 # Gcode Regex and Constants
 
 # Movement
+MOVEMENT_G0 = 'G0'
 MOVEMENT_G = '^(?:G(?:0|1|2|3) )\s?(?:([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?(?:\s+([XYZIJPREF])(-?\d*\.?\d*))?'
+
+# Acceration M204
+ACCELERATION_M204 = 'M204'
+ACCELERATION_M = '^(?:M(?:204) )\s?(?:([PRTS])(-?\d*\.?\d*))?(?:\s+([PRTS])(-?\d*\.?\d*))?(?:\s+([PRTS])(-?\d*\.?\d*))?(?:\s+([PRTS])(-?\d*\.?\d*))?(?:\s+([PRTS])(-?\d*\.?\d*))?(?:\s+([PRTS])(-?\d*\.?\d*))?(?:\s+([PRTS])(-?\d*\.?\d*))?'
 
 # Layer Change
 LAYER_CHANGE = '^;\s?(?:CHANGE_LAYER|LAYER_CHANGE)'

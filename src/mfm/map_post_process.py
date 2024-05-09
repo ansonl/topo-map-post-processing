@@ -448,13 +448,35 @@ def checkAndUpdatePosition(cl: str, pp: Position):
       elif axis == 'F':
         pp.F = axisValue
       else:
-        print(f"Unknown axis {axis} {axisValue} for input {cl}")
+        print(f"Unknown movement/feedrate axis {axis} {axisValue} for input {cl}")
       
-
     # If this move did not have extrusion, save the Feedrate as last travel speed
     if travelMove:
-      pp.FTravel = pp.F
+      if hasattr(pp, 'F'):
+        pp.FTravel = pp.F
 
+  else:
+    #look for acceleration gcode
+    accelerationMatch = re.match(ACCELERATION_M, cl)
+    if accelerationMatch:
+      m = 0
+      while m+1 < len(accelerationMatch.groups()):
+        if accelerationMatch.groups()[m] == None:
+          break
+        axis = str(accelerationMatch.groups()[m])
+        axisValue = float(accelerationMatch.groups()[m+1])
+        m += 2
+        if axis == 'P':
+          pp.P = axisValue
+        elif axis == 'R':
+          pp.R = axisValue
+        elif axis == 'T':
+          pp.T = axisValue
+        elif axis == 'S':
+          pp.P = pp.T = axisValue
+        else:
+          print(f"Unknown accleration axis {axis} {axisValue} for input {cl}")
+  
 # Update states for movment POSITION and TOOL
 def updatePrintState(ps: PrintState, cl: str, sw: bool):
   # look for movement gcode and record last position
@@ -496,7 +518,23 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
   # Restore pre-feature position state before entering a new feature on periodic layer (but not if it is a prime tower on periodic line) or first feature on layer anywhere and prime if toolchange was inserted at start of feature.
   if (ps.isPeriodicLine == True and not (curFeature.featureType == PRIME_TOWER and curFeature.toolchange)) or curFeatureIdx == 0:
     out.write("; MFM Pre-Feature Restore Positions\n")
-    restoreCmd = "G0"
+
+    # Restore acceleration
+    restoreCmd = ACCELERATION_M204
+    try:
+      getattr(curFeature.startPosition, "P")
+      restoreCmd += f" P{curFeature.startPosition.P}"
+      getattr(curFeature.startPosition, "R")
+      restoreCmd += f" R{curFeature.startPosition.R}"
+      getattr(curFeature.startPosition, "T")
+      restoreCmd += f" T{curFeature.startPosition.T}"
+    except AttributeError as e:
+      print(f"Restore acceleration did not find axis {e} yet")
+    if len(restoreCmd) > len(ACCELERATION_M204):
+      out.write(f"{restoreCmd}\n")
+
+    # Restore position and feedrate
+    restoreCmd = MOVEMENT_G0
     try:
       getattr(curFeature.startPosition, "X")
       restoreCmd += f" X{curFeature.startPosition.X}"
@@ -508,7 +546,7 @@ def startNewFeature(gf: str, ps: PrintState, f: typing.TextIO, out: typing.TextI
       restoreCmd += f" F{curFeature.startPosition.FTravel}"
     except AttributeError as e:
       print(f"Restore position did not find axis {e} yet")
-    if len(restoreCmd) > 2:
+    if len(restoreCmd) > len(MOVEMENT_G0):
       out.write(f"{restoreCmd}\n")
     #out.write(f"G0 X{curFeature.startPosition.X} Y{curFeature.startPosition.Y} Z{curFeature.startPosition.Z} F{curFeature.startPosition.F}\n")
     # Restore any prime needed
