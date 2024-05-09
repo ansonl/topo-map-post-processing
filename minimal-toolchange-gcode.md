@@ -33,7 +33,7 @@ Every 3D printer is different and you should manually verify that the provided G
 
 The movement commands to perform the toolchange can be set and managed within firmware or the slicer.
 
-I highly recommend setting your toolchange G-code within firmware as a macro in Marlin or Klipper. The firmware will handle both the hotend offset and toolchange which simplifies the process. Then all you need to do to perform a toolchange write/send the [`T` command](https://marlinfw.org/docs/gcode/T.html) with the extruder index after it like `T0` or `T1`.
+I highly recommend setting your toolchange G-code within firmware as a macro in Marlin or Klipper. The firmware will handle both the hotend offset and toolchange which simplifies the process. Then all you need to do to perform a toolchange is write/send the [`T` command](https://marlinfw.org/docs/gcode/T.html) with the extruder index after it like `T0` or `T1`.
 
 With toolchange movements properly setup in firmware, a toolchange becomes as simple as the below.
 

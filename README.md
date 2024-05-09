@@ -6,7 +6,7 @@ Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/
 
 MFM adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/). 3D models and printing g-code can be recolored at either layer or individual feature/line level granularity.
 
-- **Feature/Line Type Scoping** - Recoloring can be set to only affect specific printing feature/line types. *Only want to recolor top surfaces or walls at certain heights? No problem!*
+- **Feature/Line Type Scoping** - Recoloring can be set to only affect specific printing feature/line types. *Only want to recolor top surfaces or walls at certain heights? Do it with MFM!*
 
 - **G-code Feature Print Order Optimization** - Printed features are rearranged for faster, more consistent prints. Nozzle pressure is maintained and the number of toolchanges is decreased.
 
@@ -24,7 +24,7 @@ If you find this tool helpful, please leave feedback and consider supporting my 
 
 - Marlin 2 ([PrusaSlicer](https://github.com/prusa3d/PrusaSlicer)/[Bambu Studio](https://github.com/bambulab/BambuStudio))
 
-Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer and Bambu Studio default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be enabled.
+Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer and Bambu Studio default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be explicitly enabled.
 
 | Slicer | Tested Version |
 | --- | --- |
@@ -52,20 +52,19 @@ If a release of MFM has not been built for your OS, you can [download](https://g
 
 | 🚧 Issue | Solution |
 | --- | --- |
-| How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as G-code. This exported G-code file can be processed and recolored by MFM. |
+| How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as G-code (ASCII G-code). This exported G-code file can be processed and recolored by MFM. |
 | How do I printer my G-code file? | Put the G-code file on an SD card or transfer the G-code file to your printer over the network. Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464). |
 | MFM did not add or change any colors. | Setup your slicer for MFM through [Slicer Setup](slicer-setup.md) |
 | How can MFM recoloring be customized? | Read [Configuration](configuration-setup.md) for details. |
-| How can MFM be used with a material other than PLA and customized toolchange? | See [Minimal Toolchange G-code](minimal-toolchange-gcode.md) on recommendations on how to setup your own toolchange. |
+| How can MFM be used with a material other than PLA and customized toolchange? | See [Minimal Toolchange G-code](minimal-toolchange-gcode.md) on recommendations on how to setup your own toolchange. I may add an option to set toolchange temperatures based on material in the future. Open an issue with your use cases. |
 | Incorrect color was printed even though previewing the exported G-code in the slicer shows the correct color slots being used. | Assign a different filament to each slot in the Bambu AMS. Every slot with a different color **must have a different color assigned** in AMS. Otherwise Bambu AMS [Autoswitch](https://forum.bambulab.com/t/automatic-material-switch-over/4189) feature may try to use a single slot's filament for a shared material and color between multiple slots. |
 | Mixed OS line endings in the same file will lead to G-code errors. MFM tries to auto detect the line ending used with first line ending found. | Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers) |
 | Only one isoline interval and/or colored elevation range can be set. | Only one of each is exposed at the moment. The implementation could support more in the future if there is a use case. |
-| Support and Bridge features are not explicitly prioritized to pprint first.  | I may prioritize them in the future. Add an issue on your use case for this. |
-| Acceleration  | I may prioritize them in the future. Add an issue on your use case for this. |
+| Support and Bridge features are not explicitly prioritized to pprint first.  | I could prioritize printing certain features first in the future. Open an issue with your use cases for this. |
 
 ## Bug Reports
 
-Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFM configuration JSON, before/after G-code, and console log.
+Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFM configuration JSON, before/after G-code, and any console logs.
 
 ## License and Disclaimer
 
