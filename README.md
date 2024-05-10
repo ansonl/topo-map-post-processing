@@ -1,3 +1,5 @@
+![MFM header](assets/MFM-header-short.webp)
+
 # 3D G-code Map Feature Modifier (MFM)
 
 Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Modifier (MFM)** is a G-code Post Processor made for 3D topo map models but any 3D model can be recolored with 2 additional colors.
@@ -19,6 +21,8 @@ MFM adds additional features to the model by post processing sliced [3D printer 
 ![map feature gcode post processing screenshot](/assets/gui_screenshot.png)
 
 If you find this tool helpful, please leave feedback and consider supporting my development and 3D modeling with a [Printables](https://www.printables.com/@ansonl) "club membership" or [Paypal](https://paypal.me/0x80).
+
+My 3D topo and other models are on [MakerWorld](https://makerworld.com/en/@ansonl) and [Printables](https://www.printables.com/@ansonl).
 
 ## Current G-code flavors supported
 
@@ -44,16 +48,26 @@ Set up your slicer and printer for MFM by following the steps on each page below
 
 3. [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
-After following all the above set up pages, download the [latest release of MFM](https://github.com/ansonl/topo-map-post-processing/releases) and run `MFM.exe`.
+After following all three above setup pages, download the [latest release of MFM](https://github.com/ansonl/topo-map-post-processing/releases) and run `MFM.exe` to start MFM.
 
-If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python gui.py`.
+1. Select the import G-code file that was saved from your slicer
+
+2. Select the configuration JSON file that you customized.
+
+3. Select the toolchange G-code file for your printer.
+
+4. Check if the export G-code file location looks right
+
+5. Press *Post Process*
+
+> If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python src/gui.py`.
 
 ## Frequent Issues
 
 | 🚧 Issue | Solution |
 | --- | --- |
-| How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as G-code (ASCII G-code). This exported G-code file can be processed and recolored by MFM. |
-| How do I printer my G-code file? | Put the G-code file on an SD card or transfer the G-code file to your printer over the network. Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464). |
+| How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as [ASCII] G-code. MFM can be process and recolor this saved G-code file. |
+| How do I printer my G-code file? | Put the G-code file exported by MFM on an SD card or transfer the G-code file to your printer over the network. Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464) for wireless transfer. |
 | MFM did not add or change any colors. | Setup your slicer for MFM through [Slicer Setup](slicer-setup.md) |
 | How can MFM recoloring be customized? | Read [Configuration](configuration-setup.md) for details. |
 | How can MFM be used with a material other than PLA and customized toolchange? | See [Minimal Toolchange G-code](minimal-toolchange-gcode.md) on recommendations on how to setup your own toolchange. I may add an option to set toolchange temperatures based on material in the future. Open an issue with your use cases. |
