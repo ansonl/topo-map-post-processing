@@ -4,6 +4,8 @@
 
 The options file is formatted as a JSON dictionary with the following keys. Options values are provided for each [3D printable map model](https://ansonliu.com/maps/) on the [specifications page](https://ansonliu.com/maps/specifications/).
 
+You can quickly test configurations with the sample dual color dice G-code files in the `sample_models` folder. 
+
 Filament/color positions are 0-based. The first position is represented by 0. The recommended filament order is:
 
 | Physical Position (left to right) → | 1 | 2 | 3 | 4 |
