@@ -43,3 +43,24 @@ Save the printer profile with a new name and select the new printer profile for 
 
 ; MFM TOOLCHANGE END
 ```
+
+## Set Filament Settings
+
+### Disable `Long retraction when cut` (Bambu Studio)
+
+Bambu Slicer has a conditional section in the toolchange that uses a proprietary G-code `M620.11` to perform a longer retraction before cutting filament. This command requires the previous extruder index for an unknown purpose. 
+
+I assume that this previous extruder index is used to retract the previous extruder index filament feeder inside the AMS due to the new longer retraction distance being greater than what the filament buffer was initially designed to buffer. 
+
+```gcode
+{if long_retractions_when_cut[previous_extruder]}
+M620.11 S1 I[previous_extruder] E-{retraction_distances_when_cut[previous_extruder]} F{old_filament_e_feedrate}
+{else}
+M620.11 S0
+{endif}
+```
+
+For every filament used:
+
+1. Filament > **Setting Overrides**
+2. Uncheck `Long retraction when cut`
