@@ -128,6 +128,10 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # wipe_end marker for normal printing features to skip
       wipeEndMatch = re.match(WIPE_END, cl)
 
+      #Debug
+      if f.tell() == 155194:
+        0==0
+
       # end if we find next layer marker
       if changeLayerMatch:
         printState.layerEnd = f.tell() - len(cl) - (len(le)-1)
@@ -138,10 +142,6 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
         printState.layerEndOriginalColor = curOriginalColor
         break
       
-      #Debug
-      if f.tell() == 125095:
-        0==0
-
       checkAndUpdatePosition(cl=cl, pp=curStartPosition)
 
       # If UNIVERSAL LAYER CHANGE END found first, look ahead to see if a new feature is the first thing on this layer or previous feature is continued.
@@ -191,7 +191,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
 
       # Look for FEATURE to find feature type
       if featureTypeMatch or (len(printState.features) == 0 and useFirstSpecialGcodeAsFeature and specialGcodeMatch):
-        #print(f"found FEATURE match at {f.tell() - len(cl) - (len(le)-1)}")
+        print(f"found FEATURE match {featureTypeMatch.groups()[0] if featureTypeMatch else 'None'} at {f.tell() - len(cl) - (len(le)-1)}")
 
         # Don't end prime tower if we found prime tower feature for Bambu
         if curFeature and curFeature.featureType == PRIME_TOWER and featureTypeMatch and (featureTypeMatch.groups()[0] == PRIME_TOWER or featureTypeMatch.groups()[0] == WIPE_TOWER):
@@ -236,7 +236,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       # A toolchange is found UNIVERSAL_TOOLCHANGE_START
       elif univeralToolchangeStartMatch: 
         curFeature.toolchange = Feature()
-        curFeature.toolchange.featureType = TOOLCHANGE
+        curFeature.toolchange.featureType = TOOLCHANGE                                                 
         curFeature.toolchange.start = f.tell() - len(cl) - (len(le)-1)
         #print(f"found toolchange start at {curFeature.toolchange.start}")
         continue
@@ -253,6 +253,7 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
       elif univeralToolchangeEndMatch:
         if curFeature.toolchange == None:
           print(f"toolchange end found before toolchange start at {f.tell()} set .end to {f.tell() - len(cl) - (len(le)-1)}")
+          1==0 # assert crash
           break
         curFeature.toolchange.end = f.tell() - len(cl) - (len(le)-1)
         #print(f"found toolchange end at {curFeature.toolchange.end}")
@@ -346,10 +347,14 @@ def checkAndInsertToolchange(ps: PrintState, f: typing.TextIO, out: typing.TextI
       nextAvailablePrimeTowerFeature = ps.primeTowerFeatures.pop(0)
       cp = f.tell()
       f.seek(nextAvailablePrimeTowerFeature.start, os.SEEK_SET)
-      while f.tell() <= nextAvailablePrimeTowerFeature.end:
+      # We check if the position is != instead of <= because readline() with the next line being empty meaning it looks like double line endings leads to high tell() values that do not make sense but still seek to the correct position anyways.
+      while f.tell() != nextAvailablePrimeTowerFeature.end:
         cl = f.readline()
 
-        # Skip WIPE_END of the inserted prime tower
+        if f.tell() == 155194:
+          0==0
+
+        # Skip WIPE_END of the nserted prime tower
         if nextAvailablePrimeTowerFeature.wipeEnd and f.tell() == nextAvailablePrimeTowerFeature.wipeEnd.start:
           writeWithFilters(out, cl, loadedColors)
           out.write(";WIPE_END placeholder for PrusaSlicer Gcode Viewer\n")

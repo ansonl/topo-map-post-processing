@@ -34,14 +34,29 @@ class SkipType(enum.Enum):
 
 # State of current Print FILE
 class PrintState:
+  """The current state of the processed G-code file."""
+
   def __init__(self):
     self.height: float = -1 
+    """The current printing height relative to the buildplate."""
+
     self.layerHeight: float = 0
+    """The layer height of an individual layer relative to the top of the last layer. E.g. 0.12, 0.2"""
+
     self.previousLayerHeight: float = 0
+    """The previous layer's layer height."""
+
     self.layerStart: int = 0
+    """The character position of the layer start."""
+
     self.layerEnd: int = 0
+    """The character position of the layer end."""
+
     self.lastFeature: Feature = None
+    """Reference to last original feature of the previous layer. Used in case it originally continues to next layer."""
+
     self.prevLayerLastFeature: Feature = None
+    """Reference to last original feature of the layer before the previous layer."""
 
     # Color info
     self.originalColor: int = -1 # last color changed to in original print at the start of the layer

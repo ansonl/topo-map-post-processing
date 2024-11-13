@@ -21,7 +21,7 @@ TEST_MODE = False
 # UI Constants
 APP_NAME_ABBREVIATION = 'MFM'
 APP_NAME = f'3D G-code Map Feature Modifier ({APP_NAME_ABBREVIATION})'
-APP_VERSION = '1.6.0'
+APP_VERSION = '1.6.1'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -168,7 +168,7 @@ class App(tk.Tk):
     gcodeFlavorLabel.grid(row=0, column=0, sticky=tk.W, padx=10)
     gcodeFlavorComboBox = ttk.Combobox(
       state="readonly",
-      values=['Marlin 2 (PrusaSlicer/Bambu Studio)']
+      values=['Marlin 2 (PrusaSlicer/Bambu Studio/Orca Slicer)']
     )
     gcodeFlavorComboBox.current(0)
     gcodeFlavorComboBox.grid(row=0, column=1, sticky=tk.EW, padx=10, pady=10)
@@ -326,11 +326,13 @@ class App(tk.Tk):
         if TEST_MODE:
           #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
           #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_no_prime.gcode'
-          userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
+          userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_orca_prime.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_orca_no_prime.gcode'
+          #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_prime.gcode'
           #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_prusa_no_prime.gcode'
           userOptions[IMPORT_OPTIONS_FILENAME] = 'sample_models/dual_color_dice/config-dice-test.json'
-          #userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-x1-series.gcode'
-          userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/prusa-xl-series.gcode'
+          userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-x1-series.gcode'
+          #userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/prusa-xl-series.gcode'
           userOptions[CONFIG_OUTPUT_FILE] = 'dice-export.gcode'
 
           #userOptions[CONFIG_INPUT_FILE] = 'sample_models/CA/ca_p3.gcode'
