@@ -50,11 +50,28 @@ Save the printer profile with a new name and select the new printer profile for 
 
 Bambu Slicer has a conditional section in the toolchange that uses a proprietary G-code `M620.11` to perform a longer retraction before cutting filament. This command requires the previous extruder index for an unknown purpose. 
 
-I assume that this previous extruder index is used to retract the previous extruder index filament feeder inside the AMS due to the new longer retraction distance being greater than what the filament buffer was initially designed to buffer. 
+I assume that this previous extruder index is used to simultaneously retract the previous extruder index filament feeder inside the AMS and the printhead extruder. This may be for reliability if the new longer retraction distance being greater than what the filament buffer was initially designed to buffer. 
+
+Before the toolchange
 
 ```gcode
 {if long_retractions_when_cut[previous_extruder]}
 M620.11 S1 I[previous_extruder] E-{retraction_distances_when_cut[previous_extruder]} F{old_filament_e_feedrate}
+{else}
+M620.11 S0
+{endif}
+```
+
+After the toolchange, before flushing
+
+```gcode
+{if long_retractions_when_cut[previous_extruder]}
+M620.11 S1 I[previous_extruder] E{retraction_distances_when_cut[previous_extruder]} F{old_filament_e_feedrate}
+M628 S1
+G92 E0
+G1 E{retraction_distances_when_cut[previous_extruder]} F[old_filament_e_feedrate]
+M400
+M629 S1
 {else}
 M620.11 S0
 {endif}
