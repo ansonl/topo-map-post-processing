@@ -12,7 +12,7 @@ Add markers in your slicer software G-code for the end of new layer change and s
 
 Save the printer profile with a new name and select the new printer profile for your prints.
 
-![mfpp slicer setup](assets/bambustudio-printer-settings.jpg)
+![mfm slicer setup](assets/bambustudio-printer-settings.jpg)
 
 ### PrusaSlicer / BambuStudio steps
 
