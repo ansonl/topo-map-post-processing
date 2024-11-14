@@ -1,6 +1,6 @@
-# MFPP Minimal Toolchange G-code File
+# MFM Minimal Toolchange G-code File
 
-You must supply MFPP a file containing a minimal toolchange G-code sequence for your printer.
+You must supply MFM a file containing a minimal toolchange G-code sequence for your printer.
 
 This toolchange is used when a toolchange is needed but the existing Prime Tower and toolchange G-code cannot be located or used.
 
@@ -23,7 +23,7 @@ Every 3D printer is different and you should manually verify that the provided G
 
 ## Requirements to Create a Minimal Toolchange
 
-1. The location for next extruder index (the tool/filament/color being switched to) **must** be replaced with `XX` in this text file. MFPP will replace all instances of `XX` with the next extruder index. *E.g. When switching to extruder 1, `TXX` will become `T1`*
+1. The location for next extruder index (the tool/filament/color being switched to) **must** be replaced with `XX` in this text file. MFM will replace all instances of `XX` with the next extruder index. *E.g. When switching to extruder 1, `TXX` will become `T1`*
 
 2. It is recommended to convert moves that change depending on the current print progress from absolute to relative.
 
