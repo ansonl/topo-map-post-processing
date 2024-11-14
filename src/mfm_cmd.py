@@ -14,9 +14,11 @@ TEMP_OUTPUT_GCODE_FILE = 'mfm-output.gcode'
 
 #python ./src/mfm_cmd.py "C:\Users\ansonl\Downloads\Die and Dots_PLA_3h21m.gcode" -o dice-export.gcode -c ./sample_models/dual_color_dice/config-dice-test.json -t ./minimal_toolchanges/bambu-p1-series.gcode
 
-#"C:\Users\ansonl\AppData\Local\Microsoft\WindowsApps\python3.11.exe" "C:\Users\ansonl\development\topo-map-post-processing\src\mfm_cmd.py" -c "C:\Users\ansonl\development\topo-map-post-processing\sample_models\dual_color_dice\config-dice-test.json" -t "C:\Users\ansonl\development\topo-map-post-processing\minimal_toolchanges\bambu-p1-series.gcode";
+# Slicer Post-processing Scripts (general)
+#"PYTHONPATH/python3.11.exe" "SCRIPTPATH/mfm_cmd.py" -c "OPTIONSPATH/options.json" -t "TOOLCHANGEPATH/toolchange.gcode";
 
-
+# Slicer Post-processing Scripts (windows) (put project folder in user home folder)
+#"C:\Users\USERNAME\AppData\Local\Microsoft\WindowsApps\python3.11.exe" "C:\Users\USERNAME\topo-map-post-processing\src\mfm_cmd.py" -c "C:\Users\USERNAME\topo-map-post-processing\sample_models\dual_color_dice\config-dice-test.json" -t "C:\Users\USERNAME\topo-map-post-processing\minimal_toolchanges\bambu-p1-series.gcode";
 
 if __name__ == "__main__":
 

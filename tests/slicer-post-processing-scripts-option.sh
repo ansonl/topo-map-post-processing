@@ -1,0 +1,1 @@
+"C:\Users\ansonl\AppData\Local\Microsoft\WindowsApps\python3.11.exe" "C:\Users\ansonl\development\topo-map-post-processing\src\mfm_cmd.py" -c "C:\Users\ansonl\development\topo-map-post-processing\sample_models\dual_color_dice\config-dice-test.json" -t "C:\Users\ansonl\development\topo-map-post-processing\minimal_toolchanges\bambu-p1-series.gcode";
