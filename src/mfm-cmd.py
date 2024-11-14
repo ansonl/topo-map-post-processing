@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description='3D G-code Map Feature Modifier (MFM)',
-        epilog='Report issues and contribute at https://github.com/ansonl/topo-map-post-processing'
+        epilog='Report issues and contribute at https://github.com/ansonl/mfm'
     )
     parser.add_argument('input_gcode', type=str, help='Input G-code file')
     parser.add_argument('-o', '--output_gcode', help='Output G-code file. Overwrite Input G-code file if no output provided.')

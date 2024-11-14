@@ -2,7 +2,7 @@
 
 Non-standard Bambu G-code that has undocumented parameters or deviates from [Marlin G-code](https://marlinfw.org/docs/gcode).
 
-Please contribute edits and corrections with a [pull request](https://github.com/ansonl/topo-map-post-processing/pulls) or [issue](https://github.com/ansonl/topo-map-post-processing/issues).
+Please contribute edits and corrections with a [pull request](https://github.com/ansonl/mfm/pulls) or [issue](https://github.com/ansonl/mfm/issues).
 
 More guesses can be found on this [thread](https://forum.bambulab.com/t/bambu-lab-x1-specific-g-code/666).
 

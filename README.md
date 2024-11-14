@@ -4,7 +4,7 @@
 
 Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Modifier (MFM)** is a G-code Post Processor made for 3D topo map models but any 3D model can be recolored with 2 additional colors.
 
-[Download the latest version of MFM](https://github.com/ansonl/topo-map-post-processing/releases)!
+[Download the latest version of MFM](https://github.com/ansonl/mfm/releases)!
 
 MFM adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/). 3D models and printing g-code can be recolored at either layer or individual feature/line level granularity.
 
@@ -48,7 +48,7 @@ Set up your slicer and printer for MFM by following the steps on each page below
 
 3. [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
-After following all three above setup pages, download the [latest release of MFM](https://github.com/ansonl/topo-map-post-processing/releases) and run `MFM.exe` to start MFM.
+After following all three above setup pages, download the [latest release of MFM](https://github.com/ansonl/mfm/releases) and run `MFM.exe` to start MFM.
 
 1. Select the import G-code file that was saved from your slicer
 
@@ -60,7 +60,7 @@ After following all three above setup pages, download the [latest release of MFM
 
 5. Press *Post Process*
 
-> If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/topo-map-post-processing/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python src/gui.py`.
+> If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python src/gui.py`.
 
 ## Frequent Issues
 

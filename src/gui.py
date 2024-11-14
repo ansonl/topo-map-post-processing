@@ -17,7 +17,7 @@ from mfm.configuration import *
 from mfm.map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = True
+TEST_MODE = False
 
 # UI Constants
 POST_PROCESS_BUTTON = 'Post Process'
@@ -348,7 +348,7 @@ class App(tk.Tk):
       master=self,
       text='Help',
       command=lambda:
-        webbrowser.open('https://github.com/ansonl/topo-map-post-processing')
+        webbrowser.open('https://github.com/ansonl/mfm')
     )
     websiteButton.grid(row=10, column=0, sticky=tk.E, columnspan=1, padx=10, pady=10)
 
