@@ -233,13 +233,14 @@ def findLayerFeatures(f: typing.TextIO, gf: str, printState: PrintState, pcs: li
         curFeature.toolchange = Feature()
         curFeature.toolchange.featureType = TOOLCHANGE                                                 
         curFeature.toolchange.start = f.tell() - len(cl) - (len(le)-1)
-        #print(f"found toolchange start at {curFeature.toolchange.start}")
+        print(f"found toolchange start at {curFeature.toolchange.start}")
         continue
 
       # Look for TXX if we already found the toolchange start
       elif toolchangeMatch:
         nextTool = int(toolchangeMatch.groups()[0])
         curOriginalColor = nextTool
+        #print(f'toolchangeMatch at {f.tell()}')
         curFeature.toolchange.printingColor = nextTool
         #print(f"toolchange to extruder {curFeature.toolchange.printingColor} at {f.tell()}")
         continue
@@ -478,7 +479,7 @@ def checkAndUpdatePosition(cl: str, pp: Position):
           print(f"Unknown accleration axis {axis} {axisValue} for input {cl}")
   
 # Update states for movment POSITION and TOOL
-def updatePrintState(ps: PrintState, cl: str, sw: bool):
+def updatePrintState(ps: PrintState, cl: str, sw: bool, cp: int):
   # look for movement gcode and record last position
   checkAndUpdatePosition(cl=cl, pp=ps.originalPosition)
   # look for toolchange T
@@ -486,7 +487,7 @@ def updatePrintState(ps: PrintState, cl: str, sw: bool):
 
   # Only update printstatus.originalcolor until we find the first layer. Toolchanges we find after wards are out of order due to rearranged features. We should use layerendoriginalcolor after first layer.
   if toolchangeMatch:
-    print(f"found toolchange to {int(toolchangeMatch.groups()[0])}")
+    print(f"found toolchange to {int(toolchangeMatch.groups()[0])} at {cp}")
     if ps.height == -1:
       ps.originalColor = int(toolchangeMatch.groups()[0])
     if sw == False:
@@ -626,7 +627,6 @@ def writeWithFilters(out: typing.TextIO, cl: str, lc: list[PrintColor]):
   
   out.write(cl)
 
-#def process(gcodeFlavor: str, inputFile: str, outputFile: str, toolchangeBareFile: str, periodicColors: list[PeriodicColor], replacementColors:list[ReplacementColorAtHeight], lineEnding: str, statusQueue: queue.Queue):
 def process(configuration: MFMConfiguration, statusQueue: queue.Queue):
   startTime = time.monotonic()
   try:
@@ -657,7 +657,7 @@ def process(configuration: MFMConfiguration, statusQueue: queue.Queue):
           0==0
 
         # Update current print state variables
-        updatePrintState(ps=currentPrint, cl=cl, sw=currentPrint.skipWrite)
+        updatePrintState(ps=currentPrint, cl=cl, sw=currentPrint.skipWrite, cp=cp)
       
         # If no more features left in stackcheck for new layers
         # Look for start of a layer CHANGE_LAYER

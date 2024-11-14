@@ -15,15 +15,23 @@
             "name": "Python Debugger: CMD",
             "type": "debugpy",
             "request": "launch",
-            "program": "src/mfm-cmd.py",
+            "program": "src/mfm_cmd.py",
             "args": ["./sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode", "-o", "dice-export.gcode", "-c", "./sample_models/dual_color_dice/config-dice-test.json", "-t", "./minimal_toolchanges/bambu-p1-series.gcode"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: CMD custom file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "src/mfm_cmd.py",
+            "args": ["C:/Users/ansonl/Downloads/Die and Dots_PLA_3h21m.gcode", "-o", "dice-export.gcode", "-c", "./sample_models/dual_color_dice/config-dice-test.json", "-t", "./minimal_toolchanges/bambu-p1-series.gcode"],
             "console": "integratedTerminal"
         },
         {
             "name": "Python Debugger: CMD overwrite input",
             "type": "debugpy",
             "request": "launch",
-            "program": "src/mfm-cmd.py",
+            "program": "src/mfm_cmd.py",
             "args": ["dice-export.gcode", "-c", "./sample_models/dual_color_dice/config-dice-test.json", "-t", "./minimal_toolchanges/bambu-p1-series.gcode"],
             "preLaunchTask": "Run tests",
             "console": "integratedTerminal"
