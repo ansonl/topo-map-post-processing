@@ -55,7 +55,6 @@ def findChangeLayer(f: typing.TextIO, lastPrintState: PrintState, gf: str, pcs: 
 
     printState.prevLayerLastFeature = lastPrintState.lastFeature
     printState.featureWipeEndPrime = lastPrintState.featureWipeEndPrime
-    printState.prevLayerSkipWrite = lastPrintState.skipWrite #Keep track if we were skipping last line in previous layer
 
     # Find Z_HEIGHT value
     cl = f.readline()
