@@ -12,6 +12,23 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python Debugger: CMD",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "src/mfm-cmd.py",
+            "args": ["./sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode", "-o", "dice-export.gcode", "-c", "./sample_models/dual_color_dice/config-dice-test.json", "-t", "./minimal_toolchanges/bambu-p1-series.gcode"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: CMD overwrite input",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "src/mfm-cmd.py",
+            "args": ["dice-export.gcode", "-c", "./sample_models/dual_color_dice/config-dice-test.json", "-t", "./minimal_toolchanges/bambu-p1-series.gcode"],
+            "preLaunchTask": "Run tests",
+            "console": "integratedTerminal"
+        },
+        {
           "name": "Python Debugger: Current File",
           "type": "debugpy",
           "request": "launch",

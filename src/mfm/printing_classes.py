@@ -113,7 +113,7 @@ class Feature:
 
   def __init__(self):
     """Constructor"""
-    super.__init__()
+    super().__init__()
     self.featureType: str = None
     self.start: int = 0
     self.end: int = 0

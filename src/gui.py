@@ -13,15 +13,13 @@ import enum
 
 import webbrowser
 
+from mfm.configuration import *
 from mfm.map_post_process import *
 
 # RUNTIME Flag
-TEST_MODE = False
+TEST_MODE = True
 
 # UI Constants
-APP_NAME_ABBREVIATION = 'MFM'
-APP_NAME = f'3D G-code Map Feature Modifier ({APP_NAME_ABBREVIATION})'
-APP_VERSION = '1.6.1'
 POST_PROCESS_BUTTON = 'Post Process'
 POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 
@@ -30,55 +28,9 @@ POST_PROCESS_BUTTON_PROCESSING = 'Processing'
 IMPORT_OPTIONS_FILENAME = 'importOptionsFilename'
 #CONFIG_OUTPUT_FILE = 'exportGcodeFilename'
 
-MODEL_TO_REAL_WORLD_DEFAULT_UNITS = 'modelToRealWorldDefaultUnits'
-MODEL_ONE_TO_N_VERTICAL_SCALE = 'modelOneToNVerticalScale'
-MODEL_SEA_LEVEL_BASE_THICKNESS = 'modelSeaLevelBaseThickness'
 
-REAL_WORLD_ISOLINE_ELEVATION_INTERVAL = 'realWorldIsolineElevationInterval'
-REAL_WORLD_ISOLINE_ELEVATION_START = 'realWorldIsolineElevationStart'
-REAL_WORLD_ISOLINE_ELEVATION_END = 'realWorldIsolineElevationEnd'
-MODEL_ISOLINE_HEIGHT = 'modelIsolineHeight' #in model units (mm)
-ISOLINE_COLOR_INDEX = 'isolineColorIndex'
-ISOLINE_ENABLED_FEATURES = 'isolineColorFeatureTypes'
-
-REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START = 'realWorldElevationReplacementColorStart'
-REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END = 'realWorldElevationReplacementColorEnd'
-REPLACEMENT_COLOR_INDEX = 'replacementColorIndex'
-REPLACEMENT_ORIGINAL_COLOR_INDEX = 'replacementOriginalColorIndex'
-
-periodicColorRequiredOptions = [
-  MODEL_TO_REAL_WORLD_DEFAULT_UNITS,
-  MODEL_ONE_TO_N_VERTICAL_SCALE,
-  MODEL_SEA_LEVEL_BASE_THICKNESS,
-  REAL_WORLD_ISOLINE_ELEVATION_INTERVAL,
-  REAL_WORLD_ISOLINE_ELEVATION_START,
-  REAL_WORLD_ISOLINE_ELEVATION_END,
-  MODEL_ISOLINE_HEIGHT,
-  ISOLINE_COLOR_INDEX,
-  ISOLINE_ENABLED_FEATURES
-]
-
-replacementColorRequiredOptions = [
-  MODEL_TO_REAL_WORLD_DEFAULT_UNITS,
-  MODEL_ONE_TO_N_VERTICAL_SCALE,
-  MODEL_SEA_LEVEL_BASE_THICKNESS,
-  REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START,
-  REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END,
-  REPLACEMENT_COLOR_INDEX,
-  REPLACEMENT_ORIGINAL_COLOR_INDEX
-]
 
 LINE_ENDING_FLAVOR = 'lineEndingFlavor'
-
-class LineEnding(enum.Enum):
-  AUTODETECT = "autodetect"
-  WINDOWS = "\r\n"
-  UNIX = "\n"
-  UNKNOWN = "unknown"
-
-LINE_ENDING_AUTODETECT_TITLE = f"Autodetect"
-LINE_ENDING_WINDOWS_TITLE = f"Windows {repr(LineEnding.WINDOWS.value)}"
-LINE_ENDING_UNIX_TITLE = f"Unix {repr(LineEnding.UNIX.value)}"
 
 # user options dict
 userOptions = {}
@@ -115,27 +67,6 @@ def addExportToFilename(fn):
     exportFn += fnSplit[1]
   return exportFn
 
-def determineLineEndingTypeInFile(fn) -> LineEnding:
-  with open(fn, mode='rb') as f:
-    sample1 = b''
-    sample2 = b''
-    c = 0
-    while True:
-      block = f.read(32)
-      if not block:
-        break
-      if c%2:
-        sample2=block
-      else:
-        sample1=block
-
-      if bytes(LineEnding.WINDOWS.value,'utf-8') in (sample1+sample2 if c%2 else sample2+sample1):
-        return LineEnding.WINDOWS
-      if bytes(LineEnding.UNIX.value,'utf-8') in (sample2+sample1 if not c%2 else sample1+sample2):
-        return LineEnding.UNIX
-      c^=1
-
-  return LineEnding.UNKNOWN 
 class App(tk.Tk):
   def __init__(self, queue: queue.Queue):
     super().__init__()
@@ -320,8 +251,6 @@ class App(tk.Tk):
           CONFIG_OUTPUT_FILE : userOptions.get(CONFIG_OUTPUT_FILE),
           LINE_ENDING_FLAVOR : userOptions.get(LINE_ENDING_FLAVOR)
         }
-        periodicColors: list[PeriodicColor] = []
-        replacementColors: list[ReplacementColorAtHeight] = []
 
         if TEST_MODE:
           #userOptions[CONFIG_INPUT_FILE] = 'sample_models/dual_color_dice/tests/dice_multiple_bambu_prime.gcode'
@@ -344,14 +273,7 @@ class App(tk.Tk):
           #userOptions[IMPORT_OPTIONS_FILENAME] = 'configuration-CO-z1000perc.json'
           #userOptions[CONFIG_TOOLCHANGE_MINIMAL_FILE] = 'minimal_toolchanges/bambu-p1-series.gcode'
           #userOptions[CONFIG_OUTPUT_FILE] = 'longs-export.gcode'
-          '''
-          periodicColors = [
-            PeriodicColor(colorIndex=2, startHeight=0.3, endHeight=10, height=0.5, period=1)
-          ]
-          replacementColors = [
-            ReplacementColorAtHeight(colorIndex=3, originalColorIndex=0, startHeight=8, endHeight=float('inf'))
-          ]
-          '''
+          
         else:
           if userOptions.get(CONFIG_INPUT_FILE) == None or userOptions.get(IMPORT_OPTIONS_FILENAME) == None or userOptions.get(CONFIG_TOOLCHANGE_MINIMAL_FILE) == None or userOptions.get(CONFIG_OUTPUT_FILE) == None:
             messagebox.showerror(
@@ -360,53 +282,17 @@ class App(tk.Tk):
             )
             return
           
-        # Read in user options
-        with open(userOptions.get(IMPORT_OPTIONS_FILENAME)) as f:
-          try:
-            data = json.load(f)
-            if isinstance(data,dict):
-              for item in data.items():
-                userOptions[item[0]] = item[1]
-            else:
-              raise ValueError()
-          except ValueError:
-            messagebox.showerror(
-              title='Unable to load options',
-              message='Check if options file format is JSON'
-            )
-            return
+        if readUserOptions(userOptions=userOptions, optionsFilename=userOptions.get(IMPORT_OPTIONS_FILENAME)) != None:
+          messagebox.showerror(
+            title='Unable to load options',
+            message='Check if options file format is JSON'
+          )
 
         print(userOptions)
-        if all (opt in userOptions for opt in periodicColorRequiredOptions):
-          periodicColors.append(
-            createIsoline(
-              modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
-              modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
-              modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-              realWorldIsolineElevationInterval=userOptions[REAL_WORLD_ISOLINE_ELEVATION_INTERVAL],
-              realWorldIsolineElevationStart=userOptions[REAL_WORLD_ISOLINE_ELEVATION_START],
-              realWorldIsolineElevationEnd=userOptions[REAL_WORLD_ISOLINE_ELEVATION_END],
-              modelIsolineHeight=userOptions[MODEL_ISOLINE_HEIGHT],
-              colorIndex=userOptions[ISOLINE_COLOR_INDEX],
-              enabledFeatures=userOptions[ISOLINE_ENABLED_FEATURES]
-            )
-          )
-          print("Added isoline based on options")
 
-        if all (opt in userOptions for opt in replacementColorRequiredOptions):
-          replacementColors.append(
-            createReplacementColor(
-              modelToRealWorldDefaultUnits=userOptions[MODEL_TO_REAL_WORLD_DEFAULT_UNITS],
-              modelOneToNVerticalScale=userOptions[MODEL_ONE_TO_N_VERTICAL_SCALE],
-              modelSeaLevelBaseThickness=userOptions[MODEL_SEA_LEVEL_BASE_THICKNESS],
-              realWorldElevationStart=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_START],
-              realWorldElevationEnd=userOptions[REAL_WORLD_ELEVATION_REPLACEMENT_COLOR_END],
-              colorIndex=userOptions[REPLACEMENT_COLOR_INDEX],
-              originalColorIndex=userOptions[REPLACEMENT_ORIGINAL_COLOR_INDEX]
-            )
-          )
-          print("Added replacement color based on options")
-        
+        periodicColors = parsePeriodicColors(userOptions=userOptions)
+        replacementColors = parseReplacementColors(userOptions=userOptions)
+
         lineEndingFlavor = userOptions[LINE_ENDING_FLAVOR] if userOptions[LINE_ENDING_FLAVOR] else LineEnding.AUTODETECT
         print(f"Selected {repr(lineEndingFlavor)} line ending.")
         if lineEndingFlavor == LineEnding.AUTODETECT:

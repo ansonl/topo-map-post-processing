@@ -1,0 +1,3 @@
+APP_NAME_ABBREVIATION = 'MFM'
+APP_NAME = f'3D G-code Map Feature Modifier ({APP_NAME_ABBREVIATION})'
+APP_VERSION = '1.6.1'

@@ -1,0 +1,17 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Run tests",
+        "type": "shell",
+        "command": "cp ./sample_models/dual_color_dice/tests/dice_multiple_bambu_prime_adaptive_layer_height.gcode ./dice-export.gcode",
+        "group": "test",
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared"
+        }
+      }
+    ]
+  }
