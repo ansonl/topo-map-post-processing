@@ -55,15 +55,19 @@ Set up your slicer and printer for MFM by following the steps on each page below
 
 After following all above setup steps, you can run MFM as a Slicer Post-processor Script (most updated) or Graphical App:
 
-### Slicer Post-processor Script
+### Slicer Post-processor Script or Command Line
 
 Download the [current code of MFM](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) and extract the entire folder such as your user home directory. 
 
 Setup your slicer as described in [Slicer Setup > Set Post-processing Scripts](./slicer-setup.md).
 
-1. Slice your code as usual.
+1. Add `mfm_cmd.py` with the listed parameters to slicer **Post-processing Scripts** setting.
 
-2. **Export G-code file** under the Print button in the upper right.
+2. **Slice** your model.
+
+3. **Export G-code file** under the Print button in the upper right.
+
+> If you update the MFM Options file, you may need to add/delete a space at the end of the slicer **Post-processing Scripts** setting to get the slicer to allow reslicing.
 
 ### Graphical App (GUI)
 
@@ -81,12 +85,17 @@ Download the [latest GUI release of MFM](https://github.com/ansonl/mfm/releases)
 
 > If a release of MFM has not been built for your OS, you can [download](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) this repo, navigate to it in the command line and run `python src/gui.py`.
 
+### Printing the G-code file
+
+Put the G-code file exported by your Slicer or MFM on an SD card and put the SD card in your 3D printer or transfer the G-code file to your printer over the network. 
+
+Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464) for wireless transfer.
+
 ## Frequent Issues
 
 | 🚧 Issue | Solution |
 | --- | --- |
 | How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as [ASCII] G-code. MFM can be process and recolor this saved G-code file. |
-| How do I printer my G-code file? | Put the G-code file exported by MFM on an SD card or transfer the G-code file to your printer over the network. Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464) for wireless transfer. |
 | MFM did not add or change any colors. | Setup your slicer for MFM through [Slicer Setup](slicer-setup.md) |
 | How can MFM recoloring be customized? | Read [Options](configuration-setup.md) for details. |
 | How can MFM be used with a material other than PLA and customized toolchange? | See [Minimal Toolchange G-code](minimal-toolchange-gcode.md) on recommendations on how to setup your own toolchange. I may add an option to set toolchange temperatures based on material in the future. Open an issue with your use cases. |
