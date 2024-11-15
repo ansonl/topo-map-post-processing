@@ -26,17 +26,18 @@ My 3D topo and other models are on [MakerWorld](https://makerworld.com/en/@anson
 
 ## Current G-code flavors supported
 
-- Marlin 2 ([PrusaSlicer](https://github.com/prusa3d/PrusaSlicer)/[Bambu Studio](https://github.com/bambulab/BambuStudio))
+- Marlin 2 ([PrusaSlicer](https://github.com/prusa3d/PrusaSlicer)/[Bambu Studio](https://github.com/bambulab/BambuStudio)/[Orca Slicer](https://github.com/SoftFever/OrcaSlicer))
 
-Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer and Bambu Studio default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be explicitly enabled.
+> Your slicer **must generate g-code with [Relative Extrusion](https://www.ideamaker.io/dictionaryDetail.html?name=Relative%20Extrusion&category_name=Printer%20Settings)**. PrusaSlicer, Bambu Studio, and Orca Slicer default to relative extrusion. Cura defaults to absolute extrusion and relative extrusion must be explicitly enabled.
 
 | Slicer | Tested Version |
 | --- | --- |
 | PrusaSlicer | 2.7.1 |
 | Bambu Studio | 1.8.2.56 |
-| Cura | Looking for testers |
+| Orca Slicer | 2.2.0 |
+| Cura | N/A |
 
-If you would like support for your printer or slicer G-code flavor to be added, please open an issue and if you are able to test the G-code on your printer.
+If you would like support for your printer or slicer G-code flavor to be added, please open an issue and test the G-code on your printer.
 
 ## Getting Started
 
@@ -44,15 +45,33 @@ Set up your slicer and printer for MFM by following the steps on each page below
 
 1. [Slicer Setup](slicer-setup.md)
 
-2. [Configuration](configuration-setup.md)
+2. [Options](configuration-setup.md)
 
 3. [Minimal Toolchange G-code](minimal-toolchange-gcode.md)
 
-After following all three above setup pages, download the [latest release of MFM](https://github.com/ansonl/mfm/releases) and run `MFM.exe` to start MFM.
+4. [Printer Setup](printer-setup.md)
 
-1. Select the import G-code file that was saved from your slicer
+## Running MFM Post-processor
 
-2. Select the configuration JSON file that you customized.
+After following all above setup steps, you can run MFM as a Slicer Post-processor Script (most updated) or Graphical App:
+
+### Slicer Post-processor Script
+
+Download the [current code of MFM](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) and extract the entire folder such as your user home directory. 
+
+Setup your slicer as described in [Slicer Setup > Set Post-processing Scripts](./slicer-setup.md).
+
+1. Slice your code as usual.
+
+2. **Export G-code file** under the Print button in the upper right.
+
+### Graphical App (GUI)
+
+Download the [latest GUI release of MFM](https://github.com/ansonl/mfm/releases) and run `MFM.exe` to start MFM.
+
+1. Select the import G-code file that was exported from your slicer
+
+2. Select the Options JSON file for your map model.
 
 3. Select the toolchange G-code file for your printer.
 
@@ -69,7 +88,7 @@ After following all three above setup pages, download the [latest release of MFM
 | How do I convert a 3D model into G-code for printing? | After importing and slicing your model in a slicer software, export the 3D printer commands as [ASCII] G-code. MFM can be process and recolor this saved G-code file. |
 | How do I printer my G-code file? | Put the G-code file exported by MFM on an SD card or transfer the G-code file to your printer over the network. Bambu printer users can use [FTPS](https://forum.bambulab.com/t/we-can-now-connect-to-ftp-on-the-p1-and-a1-series/6464) for wireless transfer. |
 | MFM did not add or change any colors. | Setup your slicer for MFM through [Slicer Setup](slicer-setup.md) |
-| How can MFM recoloring be customized? | Read [Configuration](configuration-setup.md) for details. |
+| How can MFM recoloring be customized? | Read [Options](configuration-setup.md) for details. |
 | How can MFM be used with a material other than PLA and customized toolchange? | See [Minimal Toolchange G-code](minimal-toolchange-gcode.md) on recommendations on how to setup your own toolchange. I may add an option to set toolchange temperatures based on material in the future. Open an issue with your use cases. |
 | Incorrect color was printed even though previewing the exported G-code in the slicer shows the correct color slots being used. | Assign a different filament to each slot in the Bambu AMS. Every slot with a different color **must have a different color assigned** in AMS. Otherwise Bambu AMS [Autoswitch](https://forum.bambulab.com/t/automatic-material-switch-over/4189) feature may try to use a single slot's filament for a shared material and color between multiple slots. |
 | Mixed OS line endings in the same file will lead to G-code errors. MFM tries to auto detect the line ending used with first line ending found. | Select the correct line ending of your G-code instead of auto detect. Either convert the entire G-code file with Unix line endings to Windows line endings before post processing or generate the G-code on Windows. [Python on Windows does not handle Unix line endings correctly.](https://stackoverflow.com/questions/15934950/python-file-tell-giving-strange-numbers) |
@@ -78,7 +97,9 @@ After following all three above setup pages, download the [latest release of MFM
 
 ## Bug Reports
 
-Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFM configuration JSON, before/after G-code, and any console logs.
+Open an issue on Github. Please note the OS, Slicer, printer, and provide the 3D model, MFM Options JSON, toolchange G-code, and logs. 
+
+Logs are written to the `~` home directory in the files `mfm-script.log` and `mfm-script-stdout.log`.
 
 ## License and Disclaimer
 
