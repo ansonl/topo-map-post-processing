@@ -4,7 +4,9 @@
 
 Add colored [isolines (contour lines/elevation lines)](https://en.wikipedia.org/wiki/Contour_line) and recolor [elevation ranges](https://desktop.arcgis.com/en/arcmap/latest/map/styles-and-symbols/working-with-color-ramps.htm) to [3D printable map models](https://ansonliu.com/maps/). **3D G-code Map Feature Modifier (MFM)** is a G-code Post Processor made for 3D topo map models but any 3D model can be recolored with 2 additional colors.
 
-[Download the latest version of MFM](https://github.com/ansonl/mfm/releases)!
+Use the latest version of MFM in 1 of 2 ways
+- [PrusaSlicer/Bambu Studio/Orca Slicer plugin](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) (preferred)
+- [GUI](https://github.com/ansonl/mfm/releases) 
 
 MFM adds additional features to the model by post processing sliced [3D printer G-code](https://marlinfw.org/meta/gcode/). 3D models and printing g-code can be recolored at either layer or individual feature/line level granularity.
 
@@ -57,7 +59,7 @@ After following all above setup steps, you can run MFM as a Slicer Post-processo
 
 ### Slicer Post-processor Script or Command Line
 
-Download the [current code of MFM](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) and extract the entire folder such as your user home directory. 
+Download the [current code of MFM](https://github.com/ansonl/mfm/archive/refs/heads/master.zip) and extract the entire folder to a location such as your user home directory. 
 
 Setup your slicer as described in [Slicer Setup > Set Post-processing Scripts](./slicer-setup.md).
 
